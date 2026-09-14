@@ -8,22 +8,53 @@ export type MediaSessionControls = {
   seek: (seconds: number) => void;
 };
 
-export function configureMediaSession(controls: MediaSessionControls): void {
-  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+const SUPPORTED_ACTIONS: MediaSessionAction[] = [
+  'play',
+  'pause',
+  'nexttrack',
+  'previoustrack',
+  'seekbackward',
+  'seekforward',
+];
+
+export function configureMediaSession(controls: MediaSessionControls): () => void {
+  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return () => {};
+
   const session = navigator.mediaSession;
-  const register = (action: MediaSessionAction, handler: () => void | Promise<void>) => {
-    try { session.setActionHandler(action, handler); } catch { /* Unsupported action on this browser. */ }
+  const handlers: Partial<Record<MediaSessionAction, () => void | Promise<void>>> = {
+    play: controls.play,
+    pause: controls.pause,
+    nexttrack: controls.next,
+    previoustrack: controls.previous,
+    seekbackward: () => controls.seek(-10),
+    seekforward: () => controls.seek(10),
   };
-  register('play', controls.play);
-  register('pause', controls.pause);
-  register('nexttrack', controls.next);
-  register('previoustrack', controls.previous);
-  register('seekbackward', () => controls.seek(-10));
-  register('seekforward', () => controls.seek(10));
+
+  for (const action of SUPPORTED_ACTIONS) {
+    try {
+      session.setActionHandler(action, handlers[action] ?? null);
+    } catch {
+      // Some browsers expose Media Session but do not support every action.
+    }
+  }
+
+  return () => {
+    for (const action of SUPPORTED_ACTIONS) {
+      try {
+        session.setActionHandler(action, null);
+      } catch {
+        // Ignore unsupported actions during cleanup.
+      }
+    }
+  };
 }
 
-export function updateMediaSession(track: Track | null, state: { duration: number; currentTime: number }): void {
+export function updateMediaSession(
+  track: Track | null,
+  state: { duration: number; currentTime: number },
+): void {
   if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+
   if (track) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: track.title,
@@ -34,7 +65,17 @@ export function updateMediaSession(track: Track | null, state: { duration: numbe
   } else {
     navigator.mediaSession.metadata = null;
   }
+
   if (Number.isFinite(state.duration) && state.duration > 0) {
-    try { navigator.mediaSession.setPositionState({ duration: state.duration, playbackRate: 1, position: Math.min(state.currentTime, state.duration) }); } catch { /* Ignore invalid lifecycle states. */ }
+    const position = Math.max(0, Math.min(state.currentTime, state.duration));
+    try {
+      navigator.mediaSession.setPositionState({
+        duration: state.duration,
+        playbackRate: 1,
+        position,
+      });
+    } catch {
+      // Ignore invalid lifecycle states.
+    }
   }
 }
