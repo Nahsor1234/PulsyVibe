@@ -12,6 +12,7 @@ export type YouTubePlayerSnapshot = {
   duration: number;
   volume: number;
   muted: boolean;
+  error: string | null;
 };
 
 export type YouTubePlayerListener = (snapshot: YouTubePlayerSnapshot) => void;
@@ -20,6 +21,7 @@ type YouTubeApiPlayer = {
   playVideo(): void;
   pauseVideo(): void;
   loadVideoById(videoId: string): void;
+  cueVideoById(videoId: string): void;
   seekTo(seconds: number, allowSeekAhead: boolean): void;
   setVolume(volume: number): void;
   mute(): void;
@@ -119,6 +121,8 @@ export class YouTubePlayerAdapter {
   private listeners = new Set<YouTubePlayerListener>();
   private state: YouTubePlayerState = 'unstarted';
   private error: string | null = null;
+  private ready = false;
+  private pendingLoad: { videoId: string; autoplay: boolean } | null = null;
 
   constructor(private readonly container: HTMLElement) {}
 
@@ -133,7 +137,13 @@ export class YouTubePlayerAdapter {
         rel: 0,
       },
       events: {
-        onReady: () => this.emit(),
+        onReady: () => {
+          this.ready = true;
+          const pending = this.pendingLoad;
+          this.pendingLoad = null;
+          if (pending) this.applyLoad(pending.videoId, pending.autoplay);
+          this.emit();
+        },
         onStateChange: event => {
           this.state = mapState(event.data);
           this.emit();
@@ -151,17 +161,12 @@ export class YouTubePlayerAdapter {
     });
   }
 
-  load(trackVideoId: string, autoplay = false): void {
-    if (!this.player) throw new Error('YouTube player is not mounted.');
-    this.error = null;
-    if (autoplay) this.player.loadVideoById(trackVideoId);
-    else {
-      // The API's player object supports loading by ID; autoplay is controlled
-      // separately so browser autoplay policy can be respected.
-      this.player.loadVideoById(trackVideoId);
-      this.player.pauseVideo();
+  load(videoId: string, autoplay = false): void {
+    if (!this.player || !this.ready) {
+      this.pendingLoad = { videoId, autoplay };
+      return;
     }
-    this.emit();
+    this.applyLoad(videoId, autoplay);
   }
 
   play(): void { this.player?.playVideo(); }
@@ -185,7 +190,7 @@ export class YouTubePlayerAdapter {
     this.emit();
   }
 
-  getSnapshot(): YouTubePlayerSnapshot & { error: string | null } {
+  getSnapshot(): YouTubePlayerSnapshot {
     return {
       state: this.state,
       currentTime: this.player?.getCurrentTime() ?? 0,
@@ -203,9 +208,19 @@ export class YouTubePlayerAdapter {
   }
 
   destroy(): void {
+    this.pendingLoad = null;
+    this.ready = false;
     this.player?.destroy();
     this.player = null;
     this.listeners.clear();
+  }
+
+  private applyLoad(videoId: string, autoplay: boolean): void {
+    if (!this.player) return;
+    this.error = null;
+    if (autoplay) this.player.loadVideoById(videoId);
+    else this.player.cueVideoById(videoId);
+    this.emit();
   }
 
   private emit(): void {
