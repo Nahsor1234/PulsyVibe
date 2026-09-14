@@ -1,6 +1,7 @@
 import type { SongCandidate } from '@/types/discovery';
 import type { TrackResolution } from '@/types/track';
 import type { YouTubeSearchClient } from '@/services/youtube/types';
+import { mapBounded } from '@/services/youtube/concurrency';
 import { getSongIdentity } from '@/lib/normalization';
 import { deduplicateSongs } from './deduplicator';
 import { createMemoryResolutionCache, type ResolutionCache } from './cache';
@@ -15,26 +16,6 @@ export type ProgressiveResolveOptions = FallbackResolveOptions & {
 
 const DEFAULT_NEXT_COUNT = 3;
 const DEFAULT_BACKGROUND_CONCURRENCY = 2;
-
-async function mapBounded<T>(
-  items: Array<{ item: T; index: number }>,
-  concurrency: number,
-  worker: (item: T, index: number) => Promise<void>,
-): Promise<void> {
-  let next = 0;
-  const workerCount = Math.min(Math.max(1, Math.floor(concurrency)), items.length);
-
-  async function run(): Promise<void> {
-    while (true) {
-      const position = next++;
-      if (position >= items.length) return;
-      const entry = items[position];
-      await worker(entry.item, entry.index);
-    }
-  }
-
-  await Promise.all(Array.from({ length: workerCount }, run));
-}
 
 /**
  * Resolves a queue progressively: current track first, then the next few tracks,
@@ -51,7 +32,7 @@ export async function resolveProgressively(
   const cache = options.cache ?? createMemoryResolutionCache();
   const results = new Array<TrackResolution | undefined>(uniqueCandidates.length);
 
-  const resolveAt = async (candidate: SongCandidate, index: number): Promise<void> => {
+  const resolveAt = async (candidate: SongCandidate, index: number): Promise<TrackResolution> => {
     const key = getSongIdentity(candidate.title, candidate.artist);
     const cached = cache.get(key);
 
@@ -62,10 +43,15 @@ export async function resolveProgressively(
     results[index] = resolution;
     if (resolution.track.status === 'verified') cache.set(key, resolution.track);
     await options.onResolved?.(resolution, index);
+    return resolution;
   };
 
   // The first track is the critical path: don't make playback wait for the queue.
-  await resolveAt(uniqueCandidates[0], 0);
+  try {
+    await resolveAt(uniqueCandidates[0], 0);
+  } catch {
+    // A single resolution failure must not prevent the rest of the queue from resolving.
+  }
 
   const nextCount = Math.max(0, Math.floor(options.nextCount ?? DEFAULT_NEXT_COUNT));
   const nextEnd = Math.min(uniqueCandidates.length, 1 + nextCount);
@@ -78,7 +64,7 @@ export async function resolveProgressively(
     await mapBounded(
       upcoming,
       Math.max(1, Math.floor(options.backgroundConcurrency ?? DEFAULT_BACKGROUND_CONCURRENCY)),
-      resolveAt,
+      ({ item, index }) => resolveAt(item, index),
     );
   }
 
@@ -88,12 +74,12 @@ export async function resolveProgressively(
   }));
 
   if (remaining.length > 0) {
-    // Background work is awaited so callers still receive a complete ordered result,
-    // while the critical path above remains isolated for future UI/player integration.
+    // Still awaited for API callers that need a complete result. The shared helper
+    // isolates individual failures; UI integration can later detach this phase.
     await mapBounded(
       remaining,
       Math.max(1, Math.floor(options.backgroundConcurrency ?? DEFAULT_BACKGROUND_CONCURRENCY)),
-      resolveAt,
+      ({ item, index }) => resolveAt(item, index),
     );
   }
 
