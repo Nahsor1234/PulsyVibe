@@ -1,8 +1,10 @@
 import { Innertube, UniversalCache } from 'youtubei.js';
 import type { SongCandidate } from '@/types/discovery';
 import type { SearchOptions, YouTubeCandidate, YouTubeSearchClient } from './types';
+import { mapBounded } from './concurrency';
 
 let clientPromise: Promise<Innertube> | null = null;
+const DEFAULT_QUERY_CONCURRENCY = 3;
 
 async function getClient(): Promise<Innertube> {
   if (!clientPromise) {
@@ -45,17 +47,28 @@ export const youtubeSearchClient: YouTubeSearchClient = {
   async search(candidate, options: SearchOptions = {}) {
     const client = await getClient();
     const queries = options.queries?.length ? options.queries : buildQueries(candidate);
-    const limit = options.limit ?? 10;
+    const limit = Math.max(0, options.limit ?? 10);
+    if (limit === 0 || queries.length === 0) return [];
+
+    const settled = await mapBounded(
+      queries,
+      DEFAULT_QUERY_CONCURRENCY,
+      async query => {
+        const searchResult = await client.search(query, { type: 'video' });
+        return (searchResult.results || [])
+          .map(item => toCandidate(item, query))
+          .filter((item): item is YouTubeCandidate => Boolean(item));
+      },
+    );
+
     const seen = new Set<string>();
     const results: YouTubeCandidate[] = [];
 
-    // Queries are intentionally sequential for the first implementation.
-    // Concurrency will be added after measuring YouTube latency/rate limits.
-    for (const query of queries) {
-      const searchResult = await client.search(query, { type: 'video' });
-      for (const item of searchResult.results || []) {
-        const candidateResult = toCandidate(item, query);
-        if (!candidateResult || seen.has(candidateResult.videoId)) continue;
+    // Merge in query order so output remains deterministic even though searches run concurrently.
+    for (const result of settled) {
+      if (result.status === 'rejected') continue;
+      for (const candidateResult of result.value) {
+        if (seen.has(candidateResult.videoId)) continue;
         seen.add(candidateResult.videoId);
         results.push(candidateResult);
         if (results.length >= limit) return results;
@@ -66,4 +79,4 @@ export const youtubeSearchClient: YouTubeSearchClient = {
   },
 };
 
-export { buildQueries };
+export { buildQueries, DEFAULT_QUERY_CONCURRENCY };
