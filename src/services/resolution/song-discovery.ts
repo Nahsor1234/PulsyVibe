@@ -1,11 +1,12 @@
 import type { SongCandidate } from '@/types/discovery';
 import type { TrackResolution } from '@/types/track';
 import type { YouTubeSearchClient } from '@/services/youtube/types';
-import { createMemoryResolutionCache, type ResolutionCache } from './cache';
+import { createPersistentResolutionCache, type ResolutionCache } from './cache';
 import { deduplicateSongs } from './deduplicator';
 import { resolveWithFallback, type FallbackResolveOptions } from './fallback';
 import { resolveProgressively, type ProgressiveResolveOptions } from './progressive';
 import { resolveBatch, type BatchResolveOptions } from './batch-resolver';
+import { getSongIdentity } from '@/lib/normalization';
 
 export type SongDiscoveryMode = 'single' | 'batch' | 'progressive';
 
@@ -29,7 +30,7 @@ export class SongDiscoveryService {
 
   constructor(
     searchClient: YouTubeSearchClient,
-    cache: ResolutionCache = createMemoryResolutionCache(),
+    cache: ResolutionCache = createPersistentResolutionCache(),
   ) {
     this.searchClient = searchClient;
     this.cache = cache;
@@ -66,19 +67,22 @@ export class SongDiscoveryService {
     candidate: SongCandidate,
     options: Omit<SongDiscoveryOptions, 'mode' | 'concurrency' | 'nextCount' | 'backgroundConcurrency'> = {},
   ): Promise<TrackResolution> {
+    const key = getSongIdentity(candidate.title, candidate.artist);
+    const cached = this.cache.get(key);
+
+    if (cached) {
+      return {
+        candidate,
+        track: { ...cached.track, source: 'cache' },
+      };
+    }
+
     const resolution = await resolveWithFallback(candidate, this.searchClient, {
       ...options,
     });
 
     if (resolution.track.status === 'verified') {
-      const key = `${candidate.title}|${candidate.artist}`;
-      // Cache identity is normalized by the lower-level resolution modules;
-      // avoid exposing cache implementation details as part of the public API.
-      void key;
-      this.cache.set(
-        resolution.track.id,
-        resolution.track,
-      );
+      this.cache.set(key, resolution.track);
     }
 
     return resolution;
