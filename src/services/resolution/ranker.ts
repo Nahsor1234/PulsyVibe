@@ -1,6 +1,6 @@
 import type { SongCandidate } from '@/types/discovery';
 import type { YouTubeCandidate } from '@/services/youtube/types';
-import { normalizeArtist, normalizeTitle } from '@/lib/normalization';
+import { normalizeArtist, normalizeTitle, tokenizeIdentity } from '@/lib/normalization';
 import { isVariantCandidate } from '@/services/youtube/filter';
 
 export type RankingBreakdown = {
@@ -19,7 +19,7 @@ export type RankedYouTubeCandidate = YouTubeCandidate & {
 };
 
 function tokens(value: string): Set<string> {
-  return new Set(normalizeTitle(value).split(/[^a-z0-9]+/).filter(Boolean));
+  return new Set(tokenizeIdentity(value));
 }
 
 function tokenSimilarity(a: string, b: string): number {
@@ -104,10 +104,13 @@ export function rankCandidates(
   candidates: YouTubeCandidate[],
 ): RankedYouTubeCandidate[] {
   return candidates
-    .map(candidate => ({
-      ...candidate,
-      score: scoreCandidate(song, candidate).total,
-      breakdown: scoreCandidate(song, candidate),
-    }))
+    .map(candidate => {
+      const breakdown = scoreCandidate(song, candidate);
+      return {
+        ...candidate,
+        score: breakdown.total,
+        breakdown,
+      };
+    })
     .sort((a, b) => b.score - a.score || a.videoId.localeCompare(b.videoId));
 }
