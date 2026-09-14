@@ -14,8 +14,24 @@ export type ResolutionCache = {
   clear(): void;
 };
 
+export type PersistentStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+
 const DEFAULT_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const SCHEMA_VERSION = 1;
+const DEFAULT_STORAGE_KEY = 'pulsyvibe:resolution-cache:v1';
+
+type SerializedCache = Record<string, ResolutionCacheEntry>;
+
+function isValidEntry(value: unknown): value is ResolutionCacheEntry {
+  if (!value || typeof value !== 'object') return false;
+  const entry = value as Partial<ResolutionCacheEntry>;
+  return Boolean(
+    entry.track &&
+      typeof entry.createdAt === 'number' &&
+      typeof entry.expiresAt === 'number' &&
+      entry.schemaVersion === SCHEMA_VERSION,
+  );
+}
 
 export function createMemoryResolutionCache(
   defaultTtlMs = DEFAULT_TTL_MS,
@@ -55,4 +71,107 @@ export function createMemoryResolutionCache(
   };
 }
 
-export { DEFAULT_TTL_MS, SCHEMA_VERSION };
+/**
+ * L2 browser-persistent cache backed by localStorage (or a compatible Storage).
+ * Invalid, expired, and incompatible entries are discarded rather than surfaced.
+ */
+export function createPersistentResolutionCache(
+  storage?: PersistentStorage,
+  storageKey = DEFAULT_STORAGE_KEY,
+  defaultTtlMs = DEFAULT_TTL_MS,
+): ResolutionCache {
+  const memory = createMemoryResolutionCache(defaultTtlMs);
+  const resolvedStorage = storage ?? getBrowserStorage();
+
+  function readAll(): SerializedCache {
+    if (!resolvedStorage) return {};
+
+    try {
+      const raw = resolvedStorage.getItem(storageKey);
+      if (!raw) return {};
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return {};
+      return parsed as SerializedCache;
+    } catch {
+      return {};
+    }
+  }
+
+  function writeAll(entries: SerializedCache): void {
+    if (!resolvedStorage) return;
+
+    try {
+      resolvedStorage.setItem(storageKey, JSON.stringify(entries));
+    } catch {
+      // Storage can be unavailable, full, or blocked. L2 is an optimization;
+      // resolution must continue to work without it.
+    }
+  }
+
+  return {
+    get(key) {
+      const memoryEntry = memory.get(key);
+      if (memoryEntry) return memoryEntry;
+      if (!resolvedStorage) return undefined;
+
+      const entries = readAll();
+      const entry = entries[key];
+      if (!isValidEntry(entry) || entry.expiresAt <= Date.now()) {
+        if (entry) {
+          delete entries[key];
+          writeAll(entries);
+        }
+        return undefined;
+      }
+
+      memory.set(key, entry.track, Math.max(0, entry.expiresAt - Date.now()));
+      return entry;
+    },
+
+    set(key, track, ttlMs = defaultTtlMs) {
+      memory.set(key, track, ttlMs);
+      if (!resolvedStorage) return;
+
+      const entries = readAll();
+      const now = Date.now();
+      entries[key] = {
+        track,
+        createdAt: now,
+        expiresAt: now + Math.max(0, ttlMs),
+        schemaVersion: SCHEMA_VERSION,
+      };
+      writeAll(entries);
+    },
+
+    delete(key) {
+      memory.delete(key);
+      if (!resolvedStorage) return;
+
+      const entries = readAll();
+      delete entries[key];
+      writeAll(entries);
+    },
+
+    clear() {
+      memory.clear();
+      if (!resolvedStorage) return;
+
+      try {
+        resolvedStorage.removeItem(storageKey);
+      } catch {
+        // Ignore unavailable storage; L1 has still been cleared.
+      }
+    },
+  };
+}
+
+function getBrowserStorage(): PersistentStorage | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    return window.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+
+export { DEFAULT_TTL_MS, SCHEMA_VERSION, DEFAULT_STORAGE_KEY };
