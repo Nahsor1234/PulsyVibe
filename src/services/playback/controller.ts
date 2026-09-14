@@ -1,5 +1,5 @@
 import type { Track } from '@/types/track';
-import type { PlaybackSource, PlaybackState, PlayerState, QueueState } from '@/types/playback';
+import type { PlaybackSource, PlaybackState, QueueState } from '@/types/playback';
 import {
   createQueueState,
   currentTrack,
@@ -16,6 +16,7 @@ export class PlaybackController {
   private queue: QueueState;
   private readonly player: AudioPlayer;
   private readonly listeners = new Set<(state: PlaybackState) => void>();
+  private readonly cleanupMediaSession: () => void;
   private operationId = 0;
   private destroyed = false;
 
@@ -33,7 +34,7 @@ export class PlaybackController {
       this.emit();
     });
 
-    configureMediaSession({
+    this.cleanupMediaSession = configureMediaSession({
       play: () => this.play(),
       pause: () => this.pause(),
       next: () => this.next(),
@@ -159,6 +160,7 @@ export class PlaybackController {
     if (this.destroyed) return;
     this.destroyed = true;
     this.operationId += 1;
+    this.cleanupMediaSession();
     this.listeners.clear();
     this.player.destroy();
   }
