@@ -17,6 +17,7 @@ export type ResolutionCache = {
 export type PersistentStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 const DEFAULT_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+const DEFAULT_MAX_MEMORY_ENTRIES = 100;
 const SCHEMA_VERSION = 1;
 const DEFAULT_STORAGE_KEY = 'pulsyvibe:resolution-cache:v1';
 
@@ -35,8 +36,10 @@ function isValidEntry(value: unknown): value is ResolutionCacheEntry {
 
 export function createMemoryResolutionCache(
   defaultTtlMs = DEFAULT_TTL_MS,
+  maxEntries = DEFAULT_MAX_MEMORY_ENTRIES,
 ): ResolutionCache {
   const entries = new Map<string, ResolutionCacheEntry>();
+  const capacity = Math.max(1, Math.floor(maxEntries));
 
   return {
     get(key) {
@@ -48,17 +51,27 @@ export function createMemoryResolutionCache(
         return undefined;
       }
 
+      // Refresh recency so L1 behaves as a small LRU cache.
+      entries.delete(key);
+      entries.set(key, entry);
       return entry;
     },
 
     set(key, track, ttlMs = defaultTtlMs) {
       const now = Date.now();
+      entries.delete(key);
       entries.set(key, {
         track,
         createdAt: now,
         expiresAt: now + Math.max(0, ttlMs),
         schemaVersion: SCHEMA_VERSION,
       });
+
+      while (entries.size > capacity) {
+        const oldestKey = entries.keys().next().value as string | undefined;
+        if (oldestKey === undefined) break;
+        entries.delete(oldestKey);
+      }
     },
 
     delete(key) {
@@ -74,13 +87,15 @@ export function createMemoryResolutionCache(
 /**
  * L2 browser-persistent cache backed by localStorage (or a compatible Storage).
  * Invalid, expired, and incompatible entries are discarded rather than surfaced.
+ * L1 is bounded to keep browser memory usage predictable.
  */
 export function createPersistentResolutionCache(
   storage?: PersistentStorage,
   storageKey = DEFAULT_STORAGE_KEY,
   defaultTtlMs = DEFAULT_TTL_MS,
+  maxMemoryEntries = DEFAULT_MAX_MEMORY_ENTRIES,
 ): ResolutionCache {
-  const memory = createMemoryResolutionCache(defaultTtlMs);
+  const memory = createMemoryResolutionCache(defaultTtlMs, maxMemoryEntries);
   const resolvedStorage = storage ?? getBrowserStorage();
 
   function readAll(): SerializedCache {
@@ -90,7 +105,7 @@ export function createPersistentResolutionCache(
       const raw = resolvedStorage.getItem(storageKey);
       if (!raw) return {};
       const parsed: unknown = JSON.parse(raw);
-      if (!parsed || typeof parsed !== 'object') return {};
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
       return parsed as SerializedCache;
     } catch {
       return {};
@@ -174,4 +189,9 @@ function getBrowserStorage(): PersistentStorage | undefined {
   }
 }
 
-export { DEFAULT_TTL_MS, SCHEMA_VERSION, DEFAULT_STORAGE_KEY };
+export {
+  DEFAULT_TTL_MS,
+  DEFAULT_MAX_MEMORY_ENTRIES,
+  SCHEMA_VERSION,
+  DEFAULT_STORAGE_KEY,
+};
