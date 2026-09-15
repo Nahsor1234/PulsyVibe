@@ -3,8 +3,7 @@ import './globals.css';
 import './phase8.css';
 import './stitch-history.css';
 import './stitch-home.css';
-import './appy-ui.css';
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from '@/components/ui/toaster';
 import data from '@/lib/placeholder-images.json';
 
 export const metadata: Metadata = {
@@ -19,11 +18,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: 'cover',
+  width: 'device-width', initialScale: 1, maximumScale: 1, userScalable: false, viewportFit: 'cover', themeColor: '#171719',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -40,20 +35,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="author" content="NashFire" />
         <meta name="theme-color" content="#171719" id="system-theme-color" />
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function(){try{
-            document.documentElement.setAttribute('data-theme','teal');
-            var meta=document.getElementById('system-theme-color'); if(meta) meta.setAttribute('content','#171719');
-          }catch(e){}})();
-        ` }} />
-        <script dangerouslySetInnerHTML={{ __html: `
-          if (typeof window !== 'undefined') {
-            document.addEventListener('contextmenu', (e) => e.preventDefault());
-            document.onkeydown = (e) => {
-              if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) || (e.ctrlKey && e.keyCode === 85)) { e.preventDefault(); return false; }
-            };
-          }
-        ` }} />
+        <script dangerouslySetInnerHTML={{ __html: `if (typeof window !== 'undefined') { document.documentElement.removeAttribute('data-theme'); }` }} />
+        <script dangerouslySetInnerHTML={{ __html: `if (typeof window !== 'undefined') { document.addEventListener('contextmenu', (e) => e.preventDefault()); document.onkeydown = (e) => { if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) || (e.ctrlKey && e.keyCode === 85)) { e.preventDefault(); return false; } }; }` }} />
       </head>
       <body className="font-sans antialiased selection:bg-primary/20 selection:text-primary pb-[safe-area-inset-bottom]">
         {children}
