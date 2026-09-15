@@ -27,6 +27,7 @@ import {
 import type { MusicIntent } from '@/types/ai';
 import type { Track } from '@/types/track';
 import { useYouTubePlayer } from '@/hooks/use-youtube-player';
+import { usePersistentState } from '@/hooks/use-persistent-state';
 
 const QUICK_VIBES = [
   'Late night drive',
@@ -92,13 +93,13 @@ function TrackRow({ track, onPlay, onQueue, onFavorite, active, favorite }: {
 }
 
 export default function HomePage() {
-  const [view, setView] = useState<View>('home');
-  const [query, setQuery] = useState('');
-  const [lastQuery, setLastQuery] = useState('');
-  const [intent, setIntent] = useState<MusicIntent | null>(null);
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const [recentQueries, setRecentQueries] = useState<string[]>([]);
-  const [favorites, setFavorites] = useState<Track[]>([]);
+  const [view, setView] = usePersistentState<View>('pulsyvibe:view', 'home');
+  const [query, setQuery] = usePersistentState<string>('pulsyvibe:query', '');
+  const [lastQuery, setLastQuery] = usePersistentState<string>('pulsyvibe:last-query', '');
+  const [intent, setIntent] = usePersistentState<MusicIntent | null>('pulsyvibe:intent', null);
+  const [tracks, setTracks] = usePersistentState<Track[]>('pulsyvibe:tracks', []);
+  const [recentQueries, setRecentQueries] = usePersistentState<string[]>('pulsyvibe:recent-queries', []);
+  const [favorites, setFavorites] = usePersistentState<Track[]>('pulsyvibe:favorites', []);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [playerOpen, setPlayerOpen] = useState(false);
