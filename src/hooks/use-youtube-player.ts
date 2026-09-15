@@ -26,17 +26,20 @@ const EMPTY_STATE: PlaybackState = {
 export function useYouTubePlayer(initialTracks: Track[] = []) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<YouTubePlaybackController | null>(null);
+  const [controller, setController] = useState<YouTubePlaybackController | null>(null);
   const [state, setState] = useState<PlaybackState>(EMPTY_STATE);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const controller = new YouTubePlaybackController(container, initialTracks);
-    controllerRef.current = controller;
-    const unsubscribe = controller.subscribe(setState);
+    const nextController = new YouTubePlaybackController(container, initialTracks);
+    controllerRef.current = nextController;
+    setController(nextController);
 
-    void controller.mount().catch(error => {
+    const unsubscribe = nextController.subscribe(setState);
+
+    void nextController.mount().catch(error => {
       const message = error instanceof Error ? error.message : 'Unable to initialize YouTube playback.';
       setState(current => ({
         ...current,
@@ -50,15 +53,16 @@ export function useYouTubePlayer(initialTracks: Track[] = []) {
 
     return () => {
       unsubscribe();
-      controller.destroy();
+      nextController.destroy();
       controllerRef.current = null;
+      setController(null);
     };
-  }, []);
+  }, [initialTracks]);
 
   return {
     containerRef,
     state,
-    controller: controllerRef.current,
+    controller,
     play: () => void controllerRef.current?.play(),
     pause: () => controllerRef.current?.pause(),
     next: () => void controllerRef.current?.next(),
