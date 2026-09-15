@@ -1,0 +1,121 @@
+/* PulsyVibe V2 — Phase 8: micro-interactions, responsive polish, and accessibility-safe motion. */
+
+button,
+a { touch-action: manipulation; }
+
+button:not(:disabled) {
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+button:not(:disabled):active {
+  transform: scale(.975);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+img {
+  content-visibility: auto;
+}
+
+input,
+button {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input {
+  user-select: text;
+}
+
+::selection {
+  background: hsl(var(--primary) / .28);
+  color: hsl(var(--foreground));
+}
+
+/* Desktop navigation gets a restrained active-edge indicator. */
+@media (min-width: 768px) {
+  main > div > aside nav button {
+    position: relative;
+    overflow: hidden;
+  }
+
+  main > div > aside nav button::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%;
+    bottom: 20%;
+    width: 2px;
+    border-radius: 999px;
+    background: hsl(var(--primary));
+    opacity: 0;
+    transform: scaleY(.4);
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+
+  main > div > aside nav button:hover::before,
+  main > div > aside nav button.text-primary::before {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+
+  main > div > section {
+    animation: pv-page-in 260ms ease both;
+  }
+}
+
+/* Album-art hover treatment is intentionally subtle. */
+main button[aria-label^="Play "] img {
+  transition: transform 220ms ease, filter 220ms ease;
+}
+
+main button[aria-label^="Play "]:hover img {
+  transform: scale(1.035);
+  filter: brightness(1.06);
+}
+
+@keyframes pv-page-in {
+  from { opacity: .7; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 767px) {
+  main > div > section {
+    animation: none;
+  }
+
+  main > .fixed.bottom-0 nav button {
+    min-height: 44px;
+    border-radius: 1rem;
+  }
+
+  main > .fixed.bottom-0 nav button:active {
+    background: hsl(var(--primary) / .08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  main > div > section {
+    animation: none !important;
+  }
+}
