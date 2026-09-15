@@ -22,3 +22,14 @@ export type DiscoveryRequest = {
 export type DiscoveryResult = {
   candidates: SongCandidate[];
 };
+
+/**
+ * Result of full end-to-end V2 discovery orchestration:
+ * query -> MusicIntent -> SongCandidate[] -> TrackResolution[]
+ */
+export interface OrchestratedDiscoveryResult {
+  query: string;
+  intent: import('./ai').MusicIntent;
+  recommendations: SongCandidate[];
+  results: import('./track').TrackResolution[];
+}
