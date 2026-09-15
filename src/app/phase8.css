@@ -15,9 +15,7 @@ button:not(:disabled) {
 button:not(:disabled):active { transform: scale(.975); }
 button:disabled { cursor: not-allowed; }
 
-img {
-  content-visibility: auto;
-}
+img { content-visibility: auto; }
 
 input,
 button {
@@ -31,6 +29,16 @@ input { user-select: text; }
   background: hsl(var(--primary) / .28);
   color: hsl(var(--foreground));
 }
+
+/* Native View Transitions are used when the browser supports them. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: ease;
+}
+
+::view-transition-old(root) { animation-name: pv-view-out; }
+::view-transition-new(root) { animation-name: pv-view-in; }
 
 @media (min-width: 768px) {
   main > div > aside nav button {
@@ -76,9 +84,51 @@ main button[aria-label^="Play "]:hover img {
 .pv-loading-dot-delay-2 { animation-delay: .36s; }
 .pv-loading-bar { animation: pv-loading-sweep 1.5s ease-in-out infinite; }
 
+/* Floating mobile navigation: persistent, elevated, and gently alive. */
+.pv-mobile-nav {
+  animation: pv-nav-enter 420ms cubic-bezier(.22,1,.36,1) both;
+  box-shadow: 0 14px 50px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.02) inset;
+}
+
+.pv-mobile-nav-item {
+  isolation: isolate;
+  transition: color 180ms ease, transform 180ms ease;
+}
+
+.pv-mobile-nav-item:hover { transform: translateY(-1px); }
+.pv-mobile-nav-item:active { transform: translateY(0) scale(.96); }
+
+.pv-mobile-nav-pill {
+  position: absolute;
+  inset: 3px;
+  z-index: 0;
+  border-radius: 1rem;
+  background: hsl(var(--primary) / .10);
+  box-shadow: 0 0 22px hsl(var(--primary) / .08);
+  animation: pv-nav-pill-in 220ms ease both;
+}
+
+.pv-bottom-sheet-panel {
+  animation: pv-sheet-up 300ms cubic-bezier(.22,1,.36,1) both;
+}
+
+.pv-bottom-sheet-backdrop {
+  animation: pv-sheet-backdrop 220ms ease both;
+}
+
 @keyframes pv-page-in {
   from { opacity: .7; transform: translateY(3px); }
   to { opacity: 1; transform: none; }
+}
+
+@keyframes pv-view-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-4px); }
+}
+
+@keyframes pv-view-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes pv-loading-spin {
@@ -96,17 +146,28 @@ main button[aria-label^="Play "]:hover img {
   60%, 100% { transform: translateX(360%); }
 }
 
+@keyframes pv-nav-enter {
+  from { opacity: 0; transform: translate(-50%, 18px) scale(.97); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+@keyframes pv-nav-pill-in {
+  from { opacity: 0; transform: scale(.86); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pv-sheet-up {
+  from { opacity: .75; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pv-sheet-backdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (max-width: 767px) {
   main > div > section { animation: none; }
-
-  main > .fixed.bottom-0 nav button {
-    min-height: 44px;
-    border-radius: 1rem;
-  }
-
-  main > .fixed.bottom-0 nav button:active {
-    background: hsl(var(--primary) / .08);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
