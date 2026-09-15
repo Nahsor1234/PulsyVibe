@@ -1,13 +1,47 @@
 'use client';
 
 import type { FormEvent, ReactNode } from 'react';
-import { Loader2, Search, Sparkles } from 'lucide-react';
+import { Loader2, Mic, Search, Sparkles } from 'lucide-react';
 
 export function DiscoveryForm({ query, setQuery, isSearching, onSubmit, compact = false }: { query: string; setQuery: (value: string) => void; isSearching: boolean; onSubmit: (event: FormEvent) => void; compact?: boolean }) {
-  return <form onSubmit={onSubmit} className={`${compact ? 'mb-7' : 'mb-8'} rounded-3xl border border-white/10 bg-white/[0.035] p-2`}><div className="flex items-center gap-2"><Search className="ml-3 text-muted-foreground" size={20} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder={compact ? 'Search or describe a vibe...' : 'e.g. songs for a 2am drive through the city'} className="min-w-0 flex-1 bg-transparent px-1 py-4 text-sm outline-none placeholder:text-muted-foreground/60 sm:text-base" /><button disabled={!query.trim() || isSearching} className="rounded-2xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40">{isSearching ? <Loader2 className="animate-spin" size={18} /> : compact ? 'Search' : 'Discover'}</button></div></form>;
+  return (
+    <form onSubmit={onSubmit} className={compact ? 'stitch-discovery-form stitch-discovery-form-compact' : 'stitch-discovery-form'}>
+      <div className="stitch-discovery-input-row">
+        <Search className="stitch-discovery-search-icon" size={19} aria-hidden="true" />
+        <textarea
+          value={query}
+          onChange={event => setQuery(event.target.value)}
+          placeholder={compact ? 'Search or describe a vibe…' : 'Describe a mood, scene, or sound…'}
+          rows={compact ? 1 : 2}
+          className="stitch-discovery-textarea"
+          aria-label="Describe what you want to hear"
+        />
+      </div>
+      {!compact && (
+        <div className="stitch-discovery-actions">
+          <button type="button" className="stitch-voice-button" aria-label="Voice input">
+            <Mic size={15} />
+            <span>Voice</span>
+          </button>
+          <span className="stitch-discovery-hint">Natural language discovery</span>
+          <button disabled={!query.trim() || isSearching} className="stitch-generate-button" aria-label="Generate vibe playlist">
+            <span>{isSearching ? 'Finding…' : 'Generate'}</span>
+            {isSearching ? <Loader2 className="animate-spin" size={15} /> : <Sparkles size={15} />}
+          </button>
+        </div>
+      )}
+      {compact && (
+        <button disabled={!query.trim() || isSearching} className="stitch-compact-submit" aria-label="Search">
+          {isSearching ? <Loader2 className="animate-spin" size={17} /> : <Search size={17} />}
+        </button>
+      )}
+    </form>
+  );
 }
 
-export function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) { return <div className="mb-3 flex items-center gap-2 text-sm font-bold">{icon}<span>{title}</span></div>; }
+export function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
+  return <div className="mb-3 flex items-center gap-2 text-sm font-bold">{icon}<span>{title}</span></div>;
+}
 
 export function LoadingResults({ query }: { query: string }) {
   return <div className="overflow-hidden rounded-3xl border border-white/[0.07] bg-white/[0.025] p-6 sm:p-8">
