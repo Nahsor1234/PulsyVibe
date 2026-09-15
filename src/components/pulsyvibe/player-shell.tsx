@@ -1,21 +1,25 @@
 'use client';
 
 import type { RefObject } from 'react';
-import { useMemo } from 'react';
-import { ChevronDown, Heart, Pause, Play, SkipBack, SkipForward } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronDown, Download, Heart, ListMusic, MoreVertical, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from 'lucide-react';
 import type { Track } from '@/types/track';
+import { BottomSheet } from './bottom-sheet';
 import { TrackArt } from './track-art';
 
 type PlayerApi = {
   state: {
-    player: { status: string; currentTrack: Track | null };
-    queue: { items: Track[]; currentIndex: number };
+    player: { status: string; currentTrack: Track | null; currentTime: number; duration: number };
+    queue: { items: Track[]; currentIndex: number; shuffle: boolean; repeat: 'off' | 'all' | 'one' };
   };
   play: () => Promise<void> | void;
   pause: () => void;
   previous: () => Promise<void> | void;
   next: () => Promise<void> | void;
   playAt: (index: number) => void;
+  seek: (seconds: number) => void;
+  setShuffle: (shuffle: boolean) => void;
+  setRepeat: (repeat: 'off' | 'all' | 'one') => void;
 };
 
 function formatTime(value: number) {
@@ -32,17 +36,18 @@ export function PlayerShell({ current, progress, player, playerOpen, setPlayerOp
   containerRef: RefObject<HTMLDivElement | null>;
 }) {
   const isPlaying = player.state.player.status === 'playing';
-  const duration = current?.duration ?? 0;
-  const currentSeconds = duration > 0 ? Math.round((progress / 100) * duration) : 0;
+  const duration = player.state.player.duration || current?.duration || 0;
+  const currentTime = Math.min(Math.max(player.state.player.currentTime, 0), duration || Number.MAX_SAFE_INTEGER);
+  const [queueOpen, setQueueOpen] = useState(false);
   const upNext = useMemo(() => {
     const { items, currentIndex } = player.state.queue;
-    return items.slice(Math.max(0, currentIndex + 1), currentIndex + 6);
+    return items.slice(Math.max(0, currentIndex + 1), currentIndex + 11);
   }, [player.state.queue.items, player.state.queue.currentIndex]);
 
   return (
     <>
       {current && (
-        <div className="pv-player-shell fixed bottom-[5.5rem] left-3 right-3 z-50 rounded-[1.5rem] border border-white/[0.09] bg-[#0e0e10] shadow-[0_18px_60px_rgba(0,0,0,.58)] md:bottom-4 md:left-1/2 md:right-auto md:w-[min(820px,calc(100%-32px))] md:-translate-x-1/2">
+        <div className="pv-player-shell fixed bottom-[5.5rem] left-3 right-3 z-50 rounded-[1.35rem] border border-white/[0.1] bg-[#0d0d0f] shadow-[0_18px_60px_rgba(0,0,0,.7)] md:bottom-4 md:left-1/2 md:right-auto md:w-[min(820px,calc(100%-32px))] md:-translate-x-1/2">
           <div className="px-3 pt-2">
             <div className="mb-2 h-1 overflow-hidden rounded-full bg-white/[0.08]"><div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${progress}%` }} /></div>
             <div className="flex items-center gap-3 pb-2">
@@ -52,6 +57,7 @@ export function PlayerShell({ current, progress, player, playerOpen, setPlayerOp
               <button onClick={() => void player.previous()} aria-label="Previous" className="rounded-full p-2 text-white/75 hover:bg-white/[0.06]"><SkipBack size={18} /></button>
               <button onClick={() => isPlaying ? player.pause() : void player.play()} aria-label="Play or pause" className="rounded-full bg-white p-3 text-black shadow-[0_8px_24px_rgba(0,0,0,.28)]">{isPlaying ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}</button>
               <button onClick={() => void player.next()} aria-label="Next" className="rounded-full p-2 text-white/75 hover:bg-white/[0.06]"><SkipForward size={18} /></button>
+              <button onClick={() => setQueueOpen(true)} aria-label="Open queue" className="rounded-full p-2 text-white/60 hover:bg-white/[0.06]"><ListMusic size={18} /></button>
             </div>
           </div>
         </div>
@@ -60,35 +66,70 @@ export function PlayerShell({ current, progress, player, playerOpen, setPlayerOp
       <div ref={containerRef} className="fixed -left-[9999px] top-0 h-px w-px overflow-hidden opacity-0 pointer-events-none" aria-hidden="true" />
 
       {playerOpen && current && (
-        <div className="pv-player-overlay fixed inset-0 z-[70] bg-[#070708]" onClick={() => setPlayerOpen(false)}>
-          <div className="flex min-h-[100dvh] w-full flex-col overflow-hidden text-white" onClick={event => event.stopPropagation()}>
-            <div className="relative flex-1 overflow-y-auto px-5 pb-10 pt-3 sm:px-8">
-              <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                {current.thumbnail && <img src={current.thumbnail} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-[0.09] blur-3xl" />}
-                <div className="absolute inset-0 bg-gradient-to-b from-[#070708]/80 via-[#070708]/95 to-[#070708]" />
-              </div>
+        <div className="pv-player-overlay fixed inset-0 z-[70] bg-[#080809] text-white" onClick={() => setPlayerOpen(false)}>
+          <div className="relative flex min-h-[100dvh] w-full flex-col overflow-hidden" onClick={event => event.stopPropagation()}>
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+              {current.thumbnail && <img src={current.thumbnail} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-[0.12] blur-3xl" />}
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,9,.58)_0%,rgba(8,8,9,.78)_45%,#080809_78%,#080809_100%)]" />
+            </div>
 
-              <div className="relative mx-auto flex min-h-full w-full max-w-6xl flex-col">
-                <header className="flex items-center justify-between py-2"><button onClick={() => setPlayerOpen(false)} aria-label="Close player" className="rounded-full bg-white/[0.07] p-3 hover:bg-white/[0.11]"><ChevronDown size={21} /></button><div className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/40">Now Playing</div><button aria-label="Player options" className="rounded-full bg-white/[0.07] px-3 py-2 text-sm font-bold text-white/65">•••</button></header>
+            <header className="relative z-10 flex items-center justify-between px-5 pb-2 pt-[max(.75rem,env(safe-area-inset-top))] sm:px-8">
+              <button onClick={() => setPlayerOpen(false)} aria-label="Close player" className="rounded-full bg-white/[0.06] p-3 hover:bg-white/[0.1]"><ChevronDown size={21} /></button>
+              <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/40">Now Playing</span>
+              <button aria-label="More player options" className="rounded-full bg-white/[0.06] p-3 text-white/55 hover:bg-white/[0.1]"><MoreVertical size={19} /></button>
+            </header>
 
-                <div className="grid flex-1 gap-8 py-6 md:grid-cols-[minmax(0,1fr)_360px] md:items-center md:gap-12">
-                  <section className="mx-auto w-full max-w-xl">
-                    <div className="mx-auto w-fit"><TrackArt track={current} size="hero" /></div>
-                    <div className="mt-7"><div className="flex items-start gap-4"><div className="min-w-0 flex-1"><h1 className="line-clamp-2 text-[2rem] font-black leading-[1.05] tracking-tight sm:text-4xl">{current.title}</h1><p className="mt-2 text-base text-white/50">{current.artist}</p></div><button aria-label="Favorite current track" className="rounded-full bg-white/[0.07] p-3 text-white/65 hover:bg-white/[0.11]"><Heart size={21} /></button></div>
+            <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 sm:px-8">
+              <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center">
+                <div className="w-[min(78vw,390px)] sm:w-[min(52vw,430px)]"><TrackArt track={current} size="hero" /></div>
 
-                      <div className="mt-7"><div className="h-1.5 overflow-hidden rounded-full bg-white/[0.09]"><div className="h-full rounded-full bg-white" style={{ width: `${progress}%` }} /></div><div className="mt-2 flex justify-between text-[10px] font-medium text-white/35"><span>{formatTime(currentSeconds)}</span><span>{formatTime(duration)}</span></div></div>
-
-                      <div className="mt-6 flex items-center justify-center gap-8 sm:gap-12"><button onClick={() => void player.previous()} aria-label="Previous" className="rounded-full bg-white/[0.08] p-4 hover:bg-white/[0.13]"><SkipBack size={23} /></button><button onClick={() => isPlaying ? player.pause() : void player.play()} aria-label="Play or pause" className="rounded-full bg-white p-5 text-black shadow-[0_12px_38px_rgba(0,0,0,.32)]">{isPlaying ? <Pause size={26} fill="currentColor" /> : <Play size={26} fill="currentColor" />}</button><button onClick={() => void player.next()} aria-label="Next" className="rounded-full bg-white/[0.08] p-4 hover:bg-white/[0.13]"><SkipForward size={23} /></button></div>
+                <div className="mt-7 w-full">
+                  <div className="flex items-start gap-4">
+                    <div className="min-w-0 flex-1">
+                      <h1 className="line-clamp-2 text-[2rem] font-black leading-[1.04] tracking-tight sm:text-4xl">{current.title}</h1>
+                      <p className="mt-2 text-base text-white/50">{current.artist}</p>
                     </div>
-                  </section>
+                    <div className="flex shrink-0 gap-2">
+                      <button aria-label="Download" className="rounded-2xl bg-white/[0.08] p-3 text-white/75 hover:bg-white/[0.12]"><Download size={20} /></button>
+                      <button aria-label="Favorite current track" className="rounded-2xl bg-white/[0.08] p-3 text-white/75 hover:bg-white/[0.12]"><Heart size={21} /></button>
+                    </div>
+                  </div>
 
-                  <section className="w-full rounded-[1.5rem] border border-white/[0.08] bg-[#0e0e10] p-4 shadow-[0_18px_60px_rgba(0,0,0,.26)] md:max-h-[min(70dvh,560px)] md:overflow-y-auto">
-                    <div className="mb-4 flex items-end justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Up Next</p><p className="mt-1 text-sm text-white/40">{upNext.length ? `${upNext.length} queued` : 'Nothing queued'}</p></div><span className="rounded-full bg-white/[0.06] px-3 py-1 text-[10px] text-white/45">Queue</span></div>
-                    {upNext.length ? <div className="space-y-1">{upNext.map((track, index) => { const queueIndex = player.state.queue.currentIndex + 1 + index; return <button key={`${track.id}-${queueIndex}`} onClick={() => player.playAt(queueIndex)} className="flex w-full items-center gap-3 rounded-2xl px-2 py-3 text-left hover:bg-white/[0.05]"><span className="w-5 text-center text-[10px] text-white/25">{index + 1}</span><TrackArt track={track} size="sm" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{track.title}</span><span className="block truncate text-xs text-white/40">{track.artist}</span></span><SkipForward size={15} className="text-white/20" /></button>; })}</div> : <div className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center"><p className="text-sm font-medium text-white/55">Your queue is empty</p><p className="mt-1 text-xs text-white/30">Add tracks from Discovery to build your next session.</p></div>}
-                  </section>
+                  <div className="mt-7">
+                    <input
+                      aria-label="Playback position"
+                      type="range"
+                      min={0}
+                      max={Math.max(duration, 0.1)}
+                      step={0.1}
+                      value={Math.min(currentTime, duration || 0)}
+                      onChange={event => player.seek(Number(event.target.value))}
+                      className="pv-player-slider w-full"
+                    />
+                    <div className="mt-2 flex justify-between text-xs font-medium text-white/45"><span>{formatTime(currentTime)}</span><span>{formatTime(duration)}</span></div>
+                  </div>
+
+                  <div className="mt-7 flex items-center justify-center gap-7 sm:gap-12">
+                    <button onClick={() => void player.previous()} aria-label="Previous" className="rounded-full bg-white/[0.08] p-4 text-white hover:bg-white/[0.13]"><SkipBack size={24} /></button>
+                    <button onClick={() => isPlaying ? player.pause() : void player.play()} aria-label="Play or pause" className="rounded-full bg-white p-5 text-black shadow-[0_14px_40px_rgba(0,0,0,.32)]"><span className="block">{isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" />}</span></button>
+                    <button onClick={() => void player.next()} aria-label="Next" className="rounded-full bg-white/[0.08] p-4 text-white hover:bg-white/[0.13]"><SkipForward size={24} /></button>
+                  </div>
+
+                  <div className="mt-8 grid grid-cols-5 gap-2">
+                    <button onClick={() => setQueueOpen(true)} aria-label="Open queue" className="pv-player-tool"><ListMusic size={20} /><span>Queue</span></button>
+                    <button aria-label="Sleep timer" className="pv-player-tool"><span className="text-lg">◔</span><span>Sleep</span></button>
+                    <button onClick={() => setQueueOpen(true)} aria-label="View queue" className="pv-player-tool"><ListMusic size={20} /><span>Up next</span></button>
+                    <button onClick={() => player.setShuffle(!player.state.queue.shuffle)} aria-label="Toggle shuffle" className={`pv-player-tool ${player.state.queue.shuffle ? 'is-on' : ''}`}><Shuffle size={19} /><span>Shuffle</span></button>
+                    <button onClick={() => player.setRepeat(player.state.queue.repeat === 'off' ? 'all' : player.state.queue.repeat === 'all' ? 'one' : 'off')} aria-label="Toggle repeat" className={`pv-player-tool ${player.state.queue.repeat !== 'off' ? 'is-on' : ''}`}><Repeat size={19} /><span>Repeat</span></button>
+                  </div>
                 </div>
               </div>
             </div>
+
+            <BottomSheet open={queueOpen} title="Up Next" onClose={() => setQueueOpen(false)}>
+              <div className="mb-3 flex items-center justify-between text-xs text-white/45"><span>{upNext.length} queued</span><span>Now Playing: {current.title}</span></div>
+              {upNext.length ? <div className="max-h-[58dvh] space-y-1 overflow-y-auto">{upNext.map((track, index) => { const queueIndex = player.state.queue.currentIndex + 1 + index; return <button key={`${track.id}-${queueIndex}`} onClick={() => { player.playAt(queueIndex); setQueueOpen(false); }} className="flex w-full items-center gap-3 rounded-2xl px-2 py-3 text-left active:bg-white/[0.06]"><span className="w-5 text-center text-[10px] text-white/25">{index + 1}</span><TrackArt track={track} size="sm" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{track.title}</span><span className="block truncate text-xs text-white/40">{track.artist} · {track.duration ? formatTime(track.duration) : ''}</span></span><MoreVertical size={16} className="text-white/25" /></button>; })}</div> : <div className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center"><p className="text-sm font-medium text-white/55">Queue is empty</p><p className="mt-1 text-xs text-white/30">Add songs from Discovery to continue playing.</p></div>}
+            </BottomSheet>
           </div>
         </div>
       )}
