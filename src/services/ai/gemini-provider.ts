@@ -73,7 +73,7 @@ export interface GeminiAiClient {
   }): Promise<T>;
 }
 
-export const DEFAULT_GEMINI_MODEL = 'googleai/gemini-2.5-flash';
+export const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'googleai/gemini-3.6-flash';
 export const DEFAULT_AI_TIMEOUT_MS = 20000;
 
 export interface GenkitGeminiClientOptions {
@@ -113,7 +113,7 @@ export class GenkitGeminiClient implements GeminiAiClient {
       );
     }
 
-    this.model = options.model || DEFAULT_GEMINI_MODEL;
+    this.model = options.model || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
     this.defaultTimeoutMs = options.defaultTimeoutMs || DEFAULT_AI_TIMEOUT_MS;
 
     // Reuse singleton Genkit runtime instance per API key
@@ -153,38 +153,82 @@ export class GenkitGeminiClient implements GeminiAiClient {
       timer.unref();
     }
 
+    const maxRetries = 2;
     try {
-      const response = await this.aiInstance.generate({
-        model: this.model,
-        system: params.systemPrompt,
-        prompt: params.prompt,
-        output: { schema: params.schema as any },
-        abortSignal: controller.signal,
-        config: {
-          temperature: params.temperature ?? 0.3,
-          safetySettings: [
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-          ],
-        },
-      });
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const response = await this.aiInstance.generate({
+            model: this.model,
+            system: params.systemPrompt,
+            prompt: params.prompt,
+            output: { schema: params.schema as any },
+            abortSignal: controller.signal,
+            config: {
+              temperature: params.temperature ?? 0.3,
+              safetySettings: [
+                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+              ],
+            },
+          });
 
-      if (!response.output) {
-        throw new Error('Gemini returned an empty structured output response.');
-      }
+          if (!response.output) {
+            throw new Error('Gemini returned an empty structured output response.');
+          }
 
-      return response.output as T;
-    } catch (err: unknown) {
-      if (isTimedOut) {
-        throw new Error(`Gemini request timed out after ${timeoutMs}ms.`);
+          return response.output as T;
+        } catch (err: unknown) {
+          if (isTimedOut) {
+            throw new Error(`Gemini request timed out after ${timeoutMs}ms.`);
+          }
+          if (params.abortSignal?.aborted) {
+            throw new Error('Gemini request was cancelled by caller.');
+          }
+          const message = err instanceof Error ? err.message : String(err);
+          const isTransient =
+            message.includes('500') ||
+            message.includes('503') ||
+            message.includes('Internal error') ||
+            message.includes('UNAVAILABLE');
+
+          if (attempt < maxRetries && isTransient) {
+            await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+            continue;
+          }
+
+          // If a non-3.6 model experienced high demand (503) or deprecation (404), attempt resilient fallback to 3.6-flash
+          if (
+            this.model !== 'googleai/gemini-3.6-flash' &&
+            (message.includes('not available') ||
+              message.includes('UNAVAILABLE') ||
+              message.includes('503') ||
+              message.includes('404'))
+          ) {
+            try {
+              const fallbackResponse = await this.aiInstance.generate({
+                model: 'googleai/gemini-3.6-flash',
+                system: params.systemPrompt,
+                prompt: params.prompt,
+                output: { schema: params.schema as any },
+                abortSignal: controller.signal,
+                config: {
+                  temperature: params.temperature ?? 0.3,
+                },
+              });
+              if (fallbackResponse.output) {
+                return fallbackResponse.output as T;
+              }
+            } catch {
+              // preserve original error below
+            }
+          }
+
+          throw new Error(`Gemini generation failed: ${message}`);
+        }
       }
-      if (params.abortSignal?.aborted) {
-        throw new Error('Gemini request was cancelled by caller.');
-      }
-      const message = err instanceof Error ? err.message : String(err);
-      throw new Error(`Gemini generation failed: ${message}`);
+      throw new Error('Gemini generation failed unexpectedly.');
     } finally {
       clearTimeout(timer);
     }

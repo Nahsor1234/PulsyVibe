@@ -92,9 +92,14 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
-    console.error('[V2 discovery] request failed:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('[V2 discovery] request failed:', errorMessage, errorStack);
     return NextResponse.json(
-      { error: 'Discovery temporarily failed. Please try again.' },
+      {
+        error: 'Discovery temporarily failed. Please try again.',
+        details: errorMessage,
+      },
       { status: 500 },
     );
   }
