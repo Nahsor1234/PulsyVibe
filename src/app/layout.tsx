@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './phase8.css';
 import './stitch-history.css';
+import './stitch-home.css';
 import { Toaster } from "@/components/ui/toaster";
 import data from '@/lib/placeholder-images.json';
 
@@ -54,7 +55,6 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="author" content="NashFire" />
         <meta name="theme-color" content="#2a7c6f" id="system-theme-color" />
-        {/* Anti-Flash & System Sync Script */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -63,7 +63,6 @@ export default function RootLayout({
                   var saved = localStorage.getItem('pulsyvibe_theme');
                   var theme = saved || 'teal';
                   document.documentElement.setAttribute('data-theme', theme);
-                  
                   var themeColors = {
                     'teal': '#2a7c6f',
                     'ocean': '#0a4d5c',
@@ -71,11 +70,8 @@ export default function RootLayout({
                     'obsidian': '#3c3c48',
                     'immersive': '#000000'
                   };
-                  
                   var meta = document.getElementById('system-theme-color') || document.querySelector('meta[name="theme-color"]');
-                  if (meta) {
-                    meta.setAttribute('content', themeColors[theme] || themeColors['teal']);
-                  }
+                  if (meta) meta.setAttribute('content', themeColors[theme] || themeColors['teal']);
                 } catch (e) {}
               })();
             `,
@@ -87,9 +83,7 @@ export default function RootLayout({
               if (typeof window !== 'undefined') {
                 document.addEventListener('contextmenu', (e) => e.preventDefault());
                 document.onkeydown = (e) => {
-                  if (e.keyCode === 123 || 
-                     (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) ||
-                     (e.ctrlKey && e.keyCode === 85)) {
+                  if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) || (e.ctrlKey && e.keyCode === 85)) {
                     e.preventDefault();
                     return false;
                   }
