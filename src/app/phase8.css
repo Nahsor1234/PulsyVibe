@@ -1,4 +1,4 @@
-/* PulsyVibe V2 — Phase 8: micro-interactions, responsive polish, and accessibility-safe motion. */
+/* PulsyVibe V2 — Phase 8+: micro-interactions, responsive polish, and accessibility-safe motion. */
 
 button,
 a { touch-action: manipulation; }
@@ -12,13 +12,8 @@ button:not(:disabled) {
     box-shadow 160ms ease;
 }
 
-button:not(:disabled):active {
-  transform: scale(.975);
-}
-
-button:disabled {
-  cursor: not-allowed;
-}
+button:not(:disabled):active { transform: scale(.975); }
+button:disabled { cursor: not-allowed; }
 
 img {
   content-visibility: auto;
@@ -30,16 +25,13 @@ button {
   user-select: none;
 }
 
-input {
-  user-select: text;
-}
+input { user-select: text; }
 
 ::selection {
   background: hsl(var(--primary) / .28);
   color: hsl(var(--foreground));
 }
 
-/* Desktop navigation gets a restrained active-edge indicator. */
 @media (min-width: 768px) {
   main > div > aside nav button {
     position: relative;
@@ -66,12 +58,9 @@ input {
     transform: scaleY(1);
   }
 
-  main > div > section {
-    animation: pv-page-in 260ms ease both;
-  }
+  main > div > section { animation: pv-page-in 260ms ease both; }
 }
 
-/* Album-art hover treatment is intentionally subtle. */
 main button[aria-label^="Play "] img {
   transition: transform 220ms ease, filter 220ms ease;
 }
@@ -81,15 +70,34 @@ main button[aria-label^="Play "]:hover img {
   filter: brightness(1.06);
 }
 
+.pv-loading-spark { animation: pv-loading-spin 1.4s linear infinite; }
+.pv-loading-dot { animation: pv-loading-pulse 1.25s ease-in-out infinite; }
+.pv-loading-dot-delay-1 { animation-delay: .18s; }
+.pv-loading-dot-delay-2 { animation-delay: .36s; }
+.pv-loading-bar { animation: pv-loading-sweep 1.5s ease-in-out infinite; }
+
 @keyframes pv-page-in {
   from { opacity: .7; transform: translateY(3px); }
   to { opacity: 1; transform: none; }
 }
 
+@keyframes pv-loading-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pv-loading-pulse {
+  0%, 100% { opacity: .3; transform: scale(.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pv-loading-sweep {
+  0% { transform: translateX(-140%); }
+  60%, 100% { transform: translateX(360%); }
+}
+
 @media (max-width: 767px) {
-  main > div > section {
-    animation: none;
-  }
+  main > div > section { animation: none; }
 
   main > .fixed.bottom-0 nav button {
     min-height: 44px;
@@ -102,9 +110,7 @@ main button[aria-label^="Play "]:hover img {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
+  html { scroll-behavior: auto; }
 
   *,
   *::before,
@@ -115,7 +121,5 @@ main button[aria-label^="Play "]:hover img {
     scroll-behavior: auto !important;
   }
 
-  main > div > section {
-    animation: none !important;
-  }
+  main > div > section { animation: none !important; }
 }
