@@ -2,7 +2,7 @@
 
 import type { FormEvent } from 'react';
 import { useMemo, useOptimistic, useState, useTransition } from 'react';
-import { Clock3, Heart, Pause, Repeat, Shuffle, SkipForward, Sparkles, Volume2 } from 'lucide-react';
+import { Clock3, Heart, Repeat, Shuffle, SkipForward, Sparkles, Volume2 } from 'lucide-react';
 import type { MusicIntent } from '@/types/ai';
 import type { Track } from '@/types/track';
 import { useYouTubePlayer } from '@/hooks/use-youtube-player';
@@ -20,7 +20,9 @@ type DiscoveryResponse = {
 };
 
 type View = 'home' | 'search' | 'library' | 'settings';
+type TransitionDirection = 'forward' | 'back';
 
+const VIEW_ORDER: View[] = ['home', 'search', 'library', 'settings'];
 const QUICK_VIBES = ['Late night drive', 'Focus without lyrics', '2000s Hindi nostalgia', 'High energy workout', 'Calm rainy evening', 'Underrated indie gems'];
 
 function runViewTransition(update: () => void) {
@@ -28,11 +30,6 @@ function runViewTransition(update: () => void) {
   const documentWithTransition = document as Document & { startViewTransition?: (callback: () => void) => unknown };
   if (typeof documentWithTransition.startViewTransition === 'function') documentWithTransition.startViewTransition(update);
   else update();
-}
-
-function formatTime(value: number) {
-  if (!Number.isFinite(value) || value < 0) return '0:00';
-  return `${Math.floor(value / 60)}:${Math.floor(value % 60).toString().padStart(2, '0')}`;
 }
 
 export default function HomePage() {
@@ -43,12 +40,12 @@ export default function HomePage() {
   const [tracks, setTracks] = usePersistentState<Track[]>('pulsyvibe:tracks', []);
   const [recentQueries, setRecentQueries] = usePersistentState<string[]>('pulsyvibe:recent-queries', []);
   const [favorites, setFavorites] = usePersistentState<Track[]>('pulsyvibe:favorites', []);
-  const [adaptivePalette, setAdaptivePalette] = usePersistentState<boolean>('pulsyvibe:adaptive-palette', true);
   const [optimisticFavorites, setOptimisticFavorite] = useOptimistic(favorites, (current: Track[], track: Track) => current.some(item => item.id === track.id) ? current.filter(item => item.id !== track.id) : [...current, track]);
   const [isSearching, setIsSearching] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [playerOpen, setPlayerOpen] = useState(false);
+  const [transitionDirection, setTransitionDirection] = useState<TransitionDirection>('forward');
 
   const player = useYouTubePlayer();
   const current = player.state.player.currentTrack;
@@ -58,7 +55,10 @@ export default function HomePage() {
 
   function navigate(nextView: View) {
     if (nextView === view) return;
-    startTransition(() => runViewTransition(() => setView(nextView)));
+    const currentIndex = VIEW_ORDER.indexOf(view);
+    const nextIndex = VIEW_ORDER.indexOf(nextView);
+    setTransitionDirection(nextIndex >= currentIndex ? 'forward' : 'back');
+    startTransition(() => setView(nextView));
   }
 
   async function discover(text: string) {
@@ -117,7 +117,7 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <AppShell view={view} onNavigate={navigate} onSearch={discover} onOpenPlayer={() => setPlayerOpen(true)} playerAvailable={Boolean(current)}>
+      <AppShell view={view} onNavigate={navigate} onSearch={discover} onOpenPlayer={() => setPlayerOpen(true)} playerAvailable={Boolean(current)} transitionDirection={transitionDirection}>
         {view === 'home' && <div className="mx-auto max-w-5xl">
           <section className="mb-10 pt-4 sm:pt-10"><p className="mb-3 flex items-center gap-2 text-sm font-medium text-primary"><Sparkles size={16} /> AI music discovery</p><h1 className="max-w-3xl text-4xl font-black tracking-tight sm:text-6xl">Tell PulsyVibe what you want to hear.</h1><p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">Describe a mood, activity, era, artist, genre, language, or just a feeling. PulsyVibe turns it into verified playable tracks.</p></section>
           <DiscoveryForm query={query} setQuery={setQuery} isSearching={isSearching} onSubmit={submit} />
@@ -139,10 +139,10 @@ export default function HomePage() {
 
         {view === 'library' && <div className="mx-auto max-w-5xl"><h1 className="mb-2 text-3xl font-black">Library</h1><p className="mb-8 text-sm text-muted-foreground">Favorites and the active playback queue.</p><SectionTitle icon={<Heart size={17} />} title="Favorites" />{optimisticFavorites.length ? <div className="space-y-1">{optimisticFavorites.map(track => <TrackRow key={track.id} track={track} active={current?.id === track.id} onPlay={() => playTrack(track)} onQueue={() => player.enqueue([track])} onFavorite={() => toggleFavorite(track)} favorite onSeed={() => { setQuery(track.title); void discover(track.title); }} />)}</div> : <StateCard title="No favorites yet" message="Tap the heart on a discovered track to keep it here." />}</div>}
 
-        {view === 'settings' && <div className="mx-auto max-w-3xl"><h1 className="mb-2 text-3xl font-black">Settings</h1><p className="mb-8 text-sm text-muted-foreground">V2 playback controls and visual preferences.</p><SettingRow icon={<Shuffle size={18} />} title="Shuffle" description="Randomize the next queue item." value={player.state.queue.shuffle ? 'On' : 'Off'} onClick={() => player.setShuffle(!player.state.queue.shuffle)} /><SettingRow icon={<Repeat size={18} />} title="Repeat" description="Repeat the current track or the whole queue." value={player.state.queue.repeat} onClick={() => player.setRepeat(player.state.queue.repeat === 'off' ? 'all' : player.state.queue.repeat === 'all' ? 'one' : 'off')} /><SettingRow icon={<Sparkles size={18} />} title="Adaptive artwork palette" description="Let the player borrow subtle accent colors from the current artwork." value={adaptivePalette ? 'On' : 'Off'} onClick={() => setAdaptivePalette(value => !value)} /><SettingRow icon={<Volume2 size={18} />} title="Playback source" description="Official YouTube IFrame Player API; no extracted media URLs." value="YouTube" /></div>}
+        {view === 'settings' && <div className="mx-auto max-w-3xl"><h1 className="mb-2 text-3xl font-black">Settings</h1><p className="mb-8 text-sm text-muted-foreground">V2 playback controls and visual preferences.</p><SettingRow icon={<Shuffle size={18} />} title="Shuffle" description="Randomize the next queue item." value={player.state.queue.shuffle ? 'On' : 'Off'} onClick={() => player.setShuffle(!player.state.queue.shuffle)} /><SettingRow icon={<Repeat size={18} />} title="Repeat" description="Repeat the current track or the whole queue." value={player.state.queue.repeat} onClick={() => player.setRepeat(player.state.queue.repeat === 'off' ? 'all' : player.state.queue.repeat === 'all' ? 'one' : 'off')} /><SettingRow icon={<Volume2 size={18} />} title="Playback source" description="Official YouTube IFrame Player API; no extracted media URLs." value="YouTube" /></div>}
       </AppShell>
 
-      <PlayerShell current={current} progress={progress} player={player} playerOpen={playerOpen} setPlayerOpen={setPlayerOpen} containerRef={player.containerRef} adaptivePalette={adaptivePalette} />
+      <PlayerShell current={current} progress={progress} player={player} playerOpen={playerOpen} setPlayerOpen={setPlayerOpen} containerRef={player.containerRef} />
     </main>
   );
 }
