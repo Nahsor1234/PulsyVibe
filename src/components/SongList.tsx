@@ -123,6 +123,7 @@ const ConsoleCard = memo(({ logs = [], isGenerating, sessionType }: { logs?: str
     </motion.div>
   );
 });
+ConsoleCard.displayName = "ConsoleCard";
 
 const AI_DJ_Box = memo(({ message }: { message: string }) => {
   const cleanMessage = useMemo(() => message.replace(/^["'"]+|["'"]+$/g, '').trim(), [message]);
@@ -149,6 +150,7 @@ const AI_DJ_Box = memo(({ message }: { message: string }) => {
     </motion.div>
   );
 });
+AI_DJ_Box.displayName = "AI_DJ_Box";
 
 const SongCard = memo(({ s, meta, isActive, isLoading, onPlay, handleYT, handleGrab, dynamicColors }: any) => {
   const songHue = useMemo(() => meta?.hue ?? s?.color ?? 161, [s?.color, meta?.hue]);
@@ -330,6 +332,7 @@ const SongCard = memo(({ s, meta, isActive, isLoading, onPlay, handleYT, handleG
     prev.dynamicColors === next.dynamicColors
   );
 });
+SongCard.displayName = "SongCard";
 
 export const SongList = memo(({ 
   songs, activeTrack, loadingTrack, onPlay, videoLinks = {}, downloadMethod = 'organic',

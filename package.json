@@ -1,14 +1,13 @@
-
 {
   "name": "com.pulsyvibe",
   "version": "0.1.0",
   "private": true,
   "author": "NashFire",
   "scripts": {
-    "dev": "next dev --turbopack -p 9002",
+    "dev": "next dev -p 3000 -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "cap:sync": "next build && npx cap sync",
     "cap:android": "npx cap open android"
@@ -67,6 +66,8 @@
     "@types/node": "^20",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.1",
+    "eslint": "^8",
+    "eslint-config-next": "15.5.9",
     "typescript": "^5"
   }
 }

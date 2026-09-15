@@ -98,7 +98,7 @@ export const ExportGuideDialog = ({ open, onOpenChange, onConfirm, isLoading }: 
               className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
             />
             <label htmlFor="hide-guide" className="text-[10px] font-black text-muted-foreground uppercase tracking-widest cursor-pointer group-hover:text-white transition-colors">
-              Don't show this again
+              Don&apos;t show this again
             </label>
           </div>
 

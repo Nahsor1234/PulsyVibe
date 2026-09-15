@@ -59,12 +59,13 @@ export async function generateSongList(input: {
   mood: string, 
   count: number, 
   language?: string, 
-  apiKey: string,
+  apiKey?: string,
   blacklist?: string[] 
 }): Promise<DJResponse> {
+  const effectiveKey = input.apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
   // Initialize fresh genkit instance with the provided key
   const ai = genkit({
-    plugins: [googleAI({ apiKey: input.apiKey })]
+    plugins: [googleAI({ apiKey: effectiveKey })]
   });
 
   const lowerMood = input.mood.toLowerCase();

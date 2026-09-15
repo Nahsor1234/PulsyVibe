@@ -1,0 +1,6 @@
+{
+  "name": "PulsyVibe",
+  "description": "AI-powered mood curations and music discovery playlist generator",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -133,12 +133,6 @@ export const useGenerationSession = ({
 
   const handleGenerate = useCallback(async (mood: string, count: number, lang: string) => {
     const generateSafeId = () => Math.random().toString(36).substring(2) + Date.now().toString(36);
-    
-    // AI Mode specific key check
-    if (!googleAiKey) {
-      onMissingKey?.();
-      return;
-    }
 
     if (containsKpop(mood)) {
       setIsMajorBlocked(true);
@@ -184,6 +178,12 @@ export const useGenerationSession = ({
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          setIsGenerating(false);
+          setIsFetching(false);
+          onMissingKey?.();
+          return;
+        }
         const errJson = await response.json().catch(() => ({}));
         throw new Error(errJson.error || `HTTP ${response.status}: ${response.statusText}`);
       }

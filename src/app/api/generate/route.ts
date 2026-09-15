@@ -34,10 +34,11 @@ let cachedAi: any = null;
 let cachedKey: string | null = null;
 
 // Eagerly warm Genkit at module load
-if (process.env.GOOGLE_AI_API_KEY) {
+const initialServerKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+if (initialServerKey) {
   try {
-    cachedAi = genkit({ plugins: [googleAI({ apiKey: process.env.GOOGLE_AI_API_KEY }) ]});
-    cachedKey = process.env.GOOGLE_AI_API_KEY;
+    cachedAi = genkit({ plugins: [googleAI({ apiKey: initialServerKey }) ]});
+    cachedKey = initialServerKey;
   } catch (e) {}
 }
 
@@ -76,7 +77,7 @@ function detectLanguageRule(input: string, region?: string): { songRule: string,
 export async function POST(req: Request) {
   try {
     const { mood, count, language, apiKey, blacklist, userProfile } = await req.json();
-    const effectiveApiKey = apiKey || process.env.GOOGLE_AI_API_KEY;
+    const effectiveApiKey = apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
 
     if (!effectiveApiKey) {
       return NextResponse.json({ error: 'API Key required.' }, { status: 401 });
