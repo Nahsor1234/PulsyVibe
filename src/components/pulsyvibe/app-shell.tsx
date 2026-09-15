@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { Home, ListMusic, Search, Settings, Sparkles } from 'lucide-react';
 import { CommandPalette } from './command-palette';
 
@@ -63,7 +63,7 @@ export function AppShell({ view, onNavigate, onSearch, onOpenPlayer, playerAvail
       </div>
 
       <nav className="pv-floating-nav fixed bottom-[max(.85rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[min(94vw,430px)] -translate-x-1/2 items-center gap-2 md:hidden" aria-label="Primary navigation">
-        <div className="pv-floating-nav-pill relative flex min-w-0 flex-1 items-center rounded-[1.35rem] border border-white/[0.12] bg-[#111113] p-1 shadow-[0_18px_55px_rgba(0,0,0,.62)]" style={{ '--pv-nav-index': activeIndex } as React.CSSProperties}>
+        <div className="pv-floating-nav-pill relative flex min-w-0 flex-1 items-center rounded-[1.35rem] border border-white/[0.12] bg-[#111113] p-1 shadow-[0_18px_55px_rgba(0,0,0,.62)]" style={{ '--pv-nav-index': activeIndex } as CSSProperties}>
           <span className="pv-floating-nav-indicator" aria-hidden="true" />
           {NAV.map(([id, Icon, label]) => {
             const active = view === id;
