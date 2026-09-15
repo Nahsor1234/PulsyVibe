@@ -26,6 +26,7 @@ const EMPTY_STATE: PlaybackState = {
 export function useYouTubePlayer(initialTracks: Track[] = []) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<YouTubePlaybackController | null>(null);
+  const initialTracksRef = useRef(initialTracks);
   const [controller, setController] = useState<YouTubePlaybackController | null>(null);
   const [state, setState] = useState<PlaybackState>(EMPTY_STATE);
 
@@ -33,7 +34,7 @@ export function useYouTubePlayer(initialTracks: Track[] = []) {
     const container = containerRef.current;
     if (!container) return;
 
-    const nextController = new YouTubePlaybackController(container, initialTracks);
+    const nextController = new YouTubePlaybackController(container, initialTracksRef.current);
     controllerRef.current = nextController;
     setController(nextController);
 
@@ -57,7 +58,7 @@ export function useYouTubePlayer(initialTracks: Track[] = []) {
       controllerRef.current = null;
       setController(null);
     };
-  }, [initialTracks]);
+  }, []);
 
   return {
     containerRef,
