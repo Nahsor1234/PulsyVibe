@@ -1,0 +1,20 @@
+/* PulsyVibe V2 — Phase 7 Settings surface */
+main>div>section>div.mx-auto.max-w-3xl{position:relative;padding-top:.5rem}
+main>div>section>div.mx-auto.max-w-3xl>h1{font-size:clamp(2.4rem,5vw,3.5rem);letter-spacing:-.045em;line-height:1}
+main>div>section>div.mx-auto.max-w-3xl>p{max-width:38rem;line-height:1.7;color:hsl(var(--muted-foreground))}
+main>div>section>div.mx-auto.max-w-3xl:before{content:'PLAYBACK';display:block;margin:2rem 0 .7rem;padding-left:2px;color:hsl(var(--muted-foreground));font-size:10px;font-weight:800;letter-spacing:.2em}
+main>div>section>div.mx-auto.max-w-3xl>button{position:relative;min-height:76px;margin:0;border:1px solid rgba(255,255,255,.065);border-bottom-color:rgba(255,255,255,.045);padding:1rem 1.1rem;background:linear-gradient(135deg,rgba(255,255,255,.045),rgba(255,255,255,.018));transition:background 180ms ease,border-color 180ms ease,transform 180ms ease,box-shadow 180ms ease}
+main>div>section>div.mx-auto.max-w-3xl>button:first-of-type{border-radius:1.25rem 1.25rem .45rem .45rem}
+main>div>section>div.mx-auto.max-w-3xl>button:nth-of-type(2){border-radius:.45rem}
+main>div>section>div.mx-auto.max-w-3xl>button:last-of-type{border-radius:.45rem  .45rem 1.25rem 1.25rem}
+main>div>section>div.mx-auto.max-w-3xl>button:hover:not(:disabled){z-index:1;border-color:hsl(var(--primary)/.22);background:linear-gradient(135deg,hsl(var(--primary)/.075),rgba(255,255,255,.025));transform:translateX(3px);box-shadow:0 12px 35px -28px hsl(var(--primary)/.75)}
+main>div>section>div.mx-auto.max-w-3xl>button:focus-visible{z-index:2}
+main>div>section>div.mx-auto.max-w-3xl>button>span:first-child{border-radius:.9rem;background:rgba(255,255,255,.055);transition:background 180ms ease,transform 180ms ease}
+main>div>section>div.mx-auto.max-w-3xl>button:hover>span:first-child{background:hsl(var(--primary)/.10);transform:scale(1.03)}
+main>div>section>div.mx-auto.max-w-3xl>button>span:nth-child(2)>span:first-child{font-size:.9rem;letter-spacing:-.01em}
+main>div>section>div.mx-auto.max-w-3xl>button>span:nth-child(2)>span:last-child{font-size:.72rem;line-height:1.5}
+main>div>section>div.mx-auto.max-w-3xl>button>span:last-child{min-width:58px;text-align:center;background:rgba(255,255,255,.055);font-weight:700;letter-spacing:.03em;transition:background 180ms ease,color 180ms ease}
+main>div>section>div.mx-auto.max-w-3xl>button:hover>span:last-child{background:hsl(var(--primary)/.10);color:hsl(var(--primary))}
+@media(min-width:768px){main>div>section>div.mx-auto.max-w-3xl{padding-top:1.5rem}main>div>section>div.mx-auto.max-w-3xl:before{margin-top:2.5rem}main>div>section>div.mx-auto.max-w-3xl>button{min-height:82px;padding-left:1.25rem;padding-right:1.25rem}}
+@media(max-width:767px){main>div>section>div.mx-auto.max-w-3xl{padding-top:.25rem}main>div>section>div.mx-auto.max-w-3xl>h1{font-size:clamp(2.35rem,12vw,3.25rem)}main>div>section>div.mx-auto.max-w-3xl:before{margin-top:1.75rem}main>div>section>div.mx-auto.max-w-3xl>button{min-height:74px;padding:.85rem}.max-w-3xl>button:hover:not(:disabled){transform:none}}
+@media(prefers-reduced-motion:reduce){main>div>section>div.mx-auto.max-w-3xl>button,main>div>section>div.mx-auto.max-w-3xl>button>span:first-child,main>div>section>div.mx-auto.max-w-3xl>button>span:last-child{transition:none}}
