@@ -87,7 +87,7 @@ export class YouTubePlaybackController {
   private unsubscribePlayer: (() => void) | null = null;
   private mounted = false;
   private destroyed = false;
-  private operationId = 0;
+  private transitionId = 0;
 
   constructor(container: HTMLElement, initialTracks: Track[] = []) {
     this.queue = createQueueState(initialTracks);
@@ -113,13 +113,14 @@ export class YouTubePlaybackController {
     this.unsubscribePlayer = this.player.subscribe(snapshot => this.handlePlayerSnapshot(snapshot));
     const track = currentTrack(this.queue);
     if (track?.status === 'verified') this.player.load(track.videoId, false);
+    this.syncPlayerState(this.player.getSnapshot());
     this.emit();
   }
 
   getState(): PlaybackState {
     return {
-      queue: this.queue,
-      player: this.playerState,
+      queue: { ...this.queue, items: [...this.queue.items] },
+      player: { ...this.playerState },
     };
   }
 
@@ -131,12 +132,14 @@ export class YouTubePlaybackController {
 
   enqueue(tracks: Track[]): void {
     if (this.destroyed || tracks.length === 0) return;
-    this.queue = enqueue(this.queue, tracks);
+    const verified = tracks.filter(track => track.status === 'verified');
+    if (!verified.length) return;
+    this.queue = enqueue(this.queue, verified);
     this.emit();
   }
 
   removeAt(index: number): void {
-    if (this.destroyed) return;
+    if (this.destroyed || !this.mounted) return;
 
     const wasCurrent = index === this.queue.currentIndex;
     this.queue = removeAt(this.queue, index);
@@ -166,7 +169,7 @@ export class YouTubePlaybackController {
   }
 
   pause(): void {
-    if (this.destroyed) return;
+    if (this.destroyed || !this.mounted) return;
     this.player.pause();
   }
 
@@ -175,7 +178,10 @@ export class YouTubePlaybackController {
 
     const index = nextIndex(this.queue);
     if (index < 0) {
-      if (fromEnded) this.emit();
+      if (fromEnded) {
+        this.playerState = { ...this.playerState, status: 'ended' };
+        this.emit();
+      }
       return;
     }
 
@@ -204,17 +210,17 @@ export class YouTubePlaybackController {
   }
 
   seek(seconds: number): void {
-    if (this.destroyed) return;
+    if (this.destroyed || !this.mounted) return;
     this.player.seek(seconds);
   }
 
   setVolume(volume: number): void {
-    if (this.destroyed) return;
+    if (this.destroyed || !this.mounted) return;
     this.player.setVolume(Math.max(0, Math.min(1, volume)) * 100);
   }
 
   setMuted(muted: boolean): void {
-    if (this.destroyed) return;
+    if (this.destroyed || !this.mounted) return;
     this.player.setMuted(muted);
   }
 
@@ -233,7 +239,8 @@ export class YouTubePlaybackController {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    this.operationId += 1;
+    this.transitionId += 1;
+    this.mounted = false;
     this.unsubscribePlayer?.();
     this.unsubscribePlayer = null;
     this.cleanupMediaSession();
@@ -245,12 +252,13 @@ export class YouTubePlaybackController {
     const track = currentTrack(this.queue);
     if (!track || track.status !== 'verified' || this.destroyed || !this.mounted) return;
 
-    const operationId = ++this.operationId;
+    const transitionId = ++this.transitionId;
     this.player.load(track.videoId, true);
 
-    if (operationId !== this.operationId || this.destroyed) {
-      this.player.pause();
-    }
+    // A later queue transition invalidates this request. The adapter load is
+    // synchronous with respect to the controller; this guard protects future
+    // asynchronous adapter implementations from reviving an obsolete track.
+    if (transitionId !== this.transitionId || this.destroyed) return;
   }
 
   private handlePlayerSnapshot(snapshot: YouTubePlayerSnapshot): void {
