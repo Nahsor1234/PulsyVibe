@@ -23,8 +23,3 @@ export interface PlaybackState {
   queue: QueueState;
   player: PlayerState;
 }
-
-export interface PlaybackSource {
-  /** Return a directly playable media URL for a verified Track. */
-  getSource(track: Track): Promise<string>;
-}
