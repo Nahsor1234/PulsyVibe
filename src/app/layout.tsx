@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './phase8.css';
+import './stitch-history.css';
 import { Toaster } from "@/components/ui/toaster";
 import data from '@/lib/placeholder-images.json';
 
