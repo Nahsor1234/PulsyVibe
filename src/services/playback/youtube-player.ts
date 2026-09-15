@@ -79,22 +79,40 @@ export function loadYouTubeIframeApi(): Promise<void> {
 
   apiPromise = new Promise<void>((resolve, reject) => {
     const previousReady = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
-      previousReady?.();
+    let settled = false;
+
+    const resolveOnce = () => {
+      if (settled) return;
+      settled = true;
       resolve();
     };
 
+    const rejectOnce = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      apiPromise = null;
+      reject(error);
+    };
+
+    window.onYouTubeIframeAPIReady = () => {
+      previousReady?.();
+      resolveOnce();
+    };
+
     const existing = document.querySelector<HTMLScriptElement>('script[data-pulsyvibe-youtube-api]');
-    if (existing) return;
+    if (existing) {
+      const timeout = window.setTimeout(() => {
+        if (!window.YT?.Player) rejectOnce(new Error('Timed out waiting for the YouTube IFrame Player API.'));
+      }, 15000);
+      void timeout;
+      return;
+    }
 
     const script = document.createElement('script');
     script.src = 'https://www.youtube.com/iframe_api';
     script.async = true;
     script.dataset.pulsyvibeYoutubeApi = 'true';
-    script.onerror = () => {
-      apiPromise = null;
-      reject(new Error('Unable to load the YouTube IFrame Player API.'));
-    };
+    script.onerror = () => rejectOnce(new Error('Unable to load the YouTube IFrame Player API.'));
     document.head.appendChild(script);
   });
 
