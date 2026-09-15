@@ -14,15 +14,10 @@ button:not(:disabled) {
 
 button:not(:disabled):active { transform: scale(.975); }
 button:disabled { cursor: not-allowed; }
-
 img { content-visibility: auto; }
 
 input,
-button {
-  -webkit-user-select: none;
-  user-select: none;
-}
-
+button { -webkit-user-select: none; user-select: none; }
 input { user-select: text; }
 
 ::selection {
@@ -30,13 +25,11 @@ input { user-select: text; }
   color: hsl(var(--foreground));
 }
 
-/* Native View Transitions are used when the browser supports them. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 220ms;
   animation-timing-function: ease;
 }
-
 ::view-transition-old(root) { animation-name: pv-view-out; }
 ::view-transition-new(root) { animation-name: pv-view-in; }
 
@@ -72,7 +65,6 @@ input { user-select: text; }
 main button[aria-label^="Play "] img {
   transition: transform 220ms ease, filter 220ms ease;
 }
-
 main button[aria-label^="Play "]:hover img {
   transform: scale(1.035);
   filter: brightness(1.06);
@@ -84,20 +76,13 @@ main button[aria-label^="Play "]:hover img {
 .pv-loading-dot-delay-2 { animation-delay: .36s; }
 .pv-loading-bar { animation: pv-loading-sweep 1.5s ease-in-out infinite; }
 
-/* Floating mobile navigation: persistent, elevated, and gently alive. */
 .pv-mobile-nav {
   animation: pv-nav-enter 420ms cubic-bezier(.22,1,.36,1) both;
   box-shadow: 0 14px 50px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.02) inset;
 }
-
-.pv-mobile-nav-item {
-  isolation: isolate;
-  transition: color 180ms ease, transform 180ms ease;
-}
-
+.pv-mobile-nav-item { isolation: isolate; transition: color 180ms ease, transform 180ms ease; }
 .pv-mobile-nav-item:hover { transform: translateY(-1px); }
 .pv-mobile-nav-item:active { transform: translateY(0) scale(.96); }
-
 .pv-mobile-nav-pill {
   position: absolute;
   inset: 3px;
@@ -108,63 +93,33 @@ main button[aria-label^="Play "]:hover img {
   animation: pv-nav-pill-in 220ms ease both;
 }
 
-.pv-bottom-sheet-panel {
-  animation: pv-sheet-up 300ms cubic-bezier(.22,1,.36,1) both;
-}
+.pv-bottom-sheet-panel { animation: pv-sheet-up 300ms cubic-bezier(.22,1,.36,1) both; }
+.pv-bottom-sheet-backdrop { animation: pv-sheet-backdrop 220ms ease both; }
 
-.pv-bottom-sheet-backdrop {
-  animation: pv-sheet-backdrop 220ms ease both;
+.pv-player-shell {
+  animation: pv-player-enter 360ms cubic-bezier(.22,1,.36,1) both;
 }
+.pv-player-art-playing {
+  display: block;
+  animation: pv-player-art-breathe 2.8s ease-in-out infinite;
+}
+.pv-player-overlay { animation: pv-player-overlay-in 220ms ease both; }
+.pv-player-hero { animation: pv-player-hero-up 420ms cubic-bezier(.22,1,.36,1) both; }
 
-@keyframes pv-page-in {
-  from { opacity: .7; transform: translateY(3px); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes pv-view-out {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(-4px); }
-}
-
-@keyframes pv-view-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pv-loading-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@keyframes pv-loading-pulse {
-  0%, 100% { opacity: .3; transform: scale(.85); }
-  50% { opacity: 1; transform: scale(1); }
-}
-
-@keyframes pv-loading-sweep {
-  0% { transform: translateX(-140%); }
-  60%, 100% { transform: translateX(360%); }
-}
-
-@keyframes pv-nav-enter {
-  from { opacity: 0; transform: translate(-50%, 18px) scale(.97); }
-  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
-}
-
-@keyframes pv-nav-pill-in {
-  from { opacity: 0; transform: scale(.86); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes pv-sheet-up {
-  from { opacity: .75; transform: translateY(100%); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pv-sheet-backdrop {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+@keyframes pv-page-in { from { opacity: .7; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@keyframes pv-view-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-4px); } }
+@keyframes pv-view-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pv-loading-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes pv-loading-pulse { 0%, 100% { opacity: .3; transform: scale(.85); } 50% { opacity: 1; transform: scale(1); } }
+@keyframes pv-loading-sweep { 0% { transform: translateX(-140%); } 60%, 100% { transform: translateX(360%); } }
+@keyframes pv-nav-enter { from { opacity: 0; transform: translate(-50%, 18px) scale(.97); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes pv-nav-pill-in { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: scale(1); } }
+@keyframes pv-sheet-up { from { opacity: .75; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pv-sheet-backdrop { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pv-player-enter { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes pv-player-art-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+@keyframes pv-player-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pv-player-hero-up { from { opacity: .7; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 @media (max-width: 767px) {
   main > div > section { animation: none; }
@@ -172,15 +127,11 @@ main button[aria-label^="Play "]:hover img {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
     scroll-behavior: auto !important;
   }
-
   main > div > section { animation: none !important; }
 }
