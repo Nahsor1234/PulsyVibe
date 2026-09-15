@@ -2,7 +2,7 @@
 
 import type { FormEvent } from 'react';
 import { useMemo, useOptimistic, useState, useTransition } from 'react';
-import { ArrowLeft, Clock3, History, Heart, Repeat, Search, Shuffle, Sparkles } from 'lucide-react';
+import { ArrowLeft, History, Repeat, Search, Shuffle, Sparkles } from 'lucide-react';
 import type { MusicIntent } from '@/types/ai';
 import type { Track } from '@/types/track';
 import { useYouTubePlayer } from '@/hooks/use-youtube-player';
@@ -31,7 +31,6 @@ function formatHistoryDate(timestamp: number) {
   if (date.toDateString() === now.toDateString()) return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   return date.toLocaleDateString([], { day: 'numeric', month: 'short' });
 }
-
 function createHistoryId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 
 export default function HomePage() {
@@ -44,7 +43,7 @@ export default function HomePage() {
   const [favorites, setFavorites] = usePersistentState<Track[]>('pulsyvibe:favorites', []);
   const [optimisticFavorites, setOptimisticFavorite] = useOptimistic(favorites, (current: Track[], track: Track) => current.some(item => item.id === track.id) ? current.filter(item => item.id !== track.id) : [...current, track]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const [transitionDirection, setTransitionDirection] = useState<TransitionDirection>('forward');
