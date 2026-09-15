@@ -12,7 +12,6 @@ const NAV = [
   ['home', Home, 'Home'],
   ['search', Search, 'Discover'],
   ['library', ListMusic, 'Library'],
-  ['settings', Settings, 'Settings'],
 ] as const;
 
 export function AppShell({ view, onNavigate, onSearch, onOpenPlayer, playerAvailable, children }: {
@@ -34,7 +33,12 @@ export function AppShell({ view, onNavigate, onSearch, onOpenPlayer, playerAvail
             <span><strong className="block text-lg tracking-tight">PulsyVibe</strong><small className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">V2 discovery</small></span>
           </button>
           <nav className="space-y-1">
-            {NAV.map(([id, Icon, label]) => (
+            {([
+              ['home', Home, 'Home'],
+              ['search', Search, 'Discover'],
+              ['library', ListMusic, 'Library'],
+              ['settings', Settings, 'Settings'],
+            ] as const).map(([id, Icon, label]) => (
               <button key={id} onClick={() => onNavigate(id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${view === id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'}`}>
                 <Icon size={19} />{label}
               </button>
@@ -46,7 +50,7 @@ export function AppShell({ view, onNavigate, onSearch, onOpenPlayer, playerAvail
           </div>
         </aside>
 
-        <section className="min-w-0 flex-1 px-4 py-5 pb-28 sm:px-6 md:px-10 md:py-8 md:pb-8">
+        <section className="min-w-0 flex-1 px-4 py-5 pb-32 sm:px-6 md:px-10 md:py-8 md:pb-8">
           <header className="mb-8 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 md:hidden"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary"><Sparkles size={19} /></span><strong>PulsyVibe</strong></div>
             <p className="hidden text-xs uppercase tracking-[0.22em] text-muted-foreground md:block">{view === 'home' ? 'Your music space' : view === 'search' ? 'Discovery' : view === 'library' ? 'Your library' : 'Preferences'}</p>
@@ -57,27 +61,21 @@ export function AppShell({ view, onNavigate, onSearch, onOpenPlayer, playerAvail
         </section>
       </div>
 
-      <nav className="pv-mobile-nav fixed bottom-3 left-1/2 z-40 flex w-[min(94vw,430px)] -translate-x-1/2 items-center justify-between gap-1 rounded-[1.4rem] border border-white/10 bg-[#111111]/88 px-2 py-2 shadow-[0_14px_50px_rgba(0,0,0,.45)] backdrop-blur-2xl md:hidden" aria-label="Primary navigation">
-        {NAV.map(([id, Icon, label]) => {
-          const active = view === id;
-          return (
-            <button
-              key={id}
-              onClick={() => onNavigate(id)}
-              aria-current={active ? 'page' : undefined}
-              className={`pv-mobile-nav-item relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[1rem] px-2 text-[10px] font-medium ${active ? 'text-primary' : 'text-muted-foreground'}`}
-            >
-              {active && <span className="pv-mobile-nav-pill" aria-hidden="true" />}
-              <Icon size={18} strokeWidth={active ? 2.4 : 2} className="relative z-[1]" />
-              <span className="relative z-[1]">{label}</span>
-            </button>
-          );
-        })}
+      <nav className="pv-floating-nav fixed bottom-[max(.75rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 md:hidden" aria-label="Primary navigation">
+        <div className="pv-floating-nav-pill flex items-center rounded-[1.65rem] border border-white/[0.09] bg-[#111313]/88 p-1.5 shadow-2xl backdrop-blur-2xl">
+          {NAV.map(([id, Icon, label]) => { const active = view === id; return <button key={id} onClick={() => onNavigate(id)} aria-current={active ? 'page' : undefined} className={`pv-floating-nav-item flex min-h-12 min-w-[5.7rem] flex-col items-center justify-center gap-1 rounded-2xl px-3 py-2 text-[10px] font-medium ${active ? 'is-active text-primary' : 'text-muted-foreground'}`}><span className="pv-floating-nav-icon"><Icon size={19} /></span><span>{label}</span></button>; })}
+        </div>
+        <button onClick={() => onNavigate('settings')} aria-label="Open settings" aria-current={view === 'settings' ? 'page' : undefined} className={`pv-floating-settings flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/[0.09] bg-[#111313]/90 shadow-2xl backdrop-blur-2xl ${view === 'settings' ? 'is-active text-primary' : 'text-muted-foreground'}`}><Settings size={19} /></button>
       </nav>
 
       <BottomSheet open={mobileMenuOpen} title="Navigate" onClose={() => setMobileMenuOpen(false)}>
         <div className="grid gap-1">
-          {NAV.map(([id, Icon, label]) => <button key={id} onClick={() => { onNavigate(id); setMobileMenuOpen(false); }} className={`flex min-h-12 items-center gap-3 rounded-2xl px-3 text-left text-sm ${view === id ? 'bg-primary/10 text-primary' : 'hover:bg-white/[0.06]'}`}><Icon size={18} />{label}</button>)}
+          {([
+            ['home', Home, 'Home'],
+            ['search', Search, 'Discover'],
+            ['library', ListMusic, 'Library'],
+            ['settings', Settings, 'Settings'],
+          ] as const).map(([id, Icon, label]) => <button key={id} onClick={() => { onNavigate(id); setMobileMenuOpen(false); }} className={`flex min-h-12 items-center gap-3 rounded-2xl px-3 text-left text-sm ${view === id ? 'bg-primary/10 text-primary' : 'hover:bg-white/[0.06]'}`}><Icon size={18} />{label}</button>)}
         </div>
       </BottomSheet>
 
