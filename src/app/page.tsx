@@ -1,388 +1,270 @@
-"use client";
+'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { VibeBackground } from "@/components/VibeBackground";
-import { MoodInput } from "@/components/MoodInput";
-import { SongList, type Song } from "@/components/SongList";
-import { HistorySidebar } from "@/components/HistorySidebar";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { OpeningScreen } from "@/components/OpeningScreen";
-import { PersistentPlayer } from "@/components/PersistentPlayer";
-import { SettingsDialog } from "@/components/SettingsDialog";
-import { ApiKeyDialog } from "@/components/ApiKeyDialog";
-import { ExportFAB } from "@/components/ExportFAB";
-import { ExportGuideDialog } from "@/components/ExportGuideDialog";
-import { motion, AnimatePresence } from "framer-motion";
-import { useVibeFeedback } from "@/hooks/use-vibe-feedback";
-import { preWarmEngine, type TrackInfo } from "@/app/actions/youtube";
-import { getTLGGPlaylistId } from "@/app/actions/get-tlgg-id";
-import { useGenerationSession } from "@/hooks/use-generation-session";
-import { useHistoryManager, type HistoryItem } from "@/hooks/use-history-manager";
-import { usePlayback } from "@/hooks/use-playback";
-import { AlertCircle, RefreshCcw, Sparkles } from "lucide-react";
+import type { FormEvent, ReactNode } from 'react';
+import { useMemo, useState } from 'react';
+import {
+  ChevronUp,
+  Clock3,
+  Heart,
+  Home,
+  ListMusic,
+  Loader2,
+  Menu,
+  MoreHorizontal,
+  Pause,
+  Play,
+  Plus,
+  Repeat,
+  Search,
+  Settings,
+  Shuffle,
+  SkipBack,
+  SkipForward,
+  Sparkles,
+  Volume2,
+  X,
+} from 'lucide-react';
+import type { MusicIntent } from '@/types/ai';
+import type { Track } from '@/types/track';
+import { useYouTubePlayer } from '@/hooks/use-youtube-player';
 
-const GOOGLE_AI_KEY_STORAGE = "pulsyvibe_google_ai_key";
-const PLAYBACK_MODE_KEY = "pulsyvibe_playback_mode";
-const DOWNLOAD_METHOD_KEY = "pulsyvibe_download_method";
-const GUID_STORAGE_KEY = "pulsyvibe_has_seen_guide";
-const THEME_STORAGE_KEY = "pulsyvibe_theme";
+const QUICK_VIBES = [
+  'Late night drive',
+  'Focus without lyrics',
+  '2000s Hindi nostalgia',
+  'High energy workout',
+  'Calm rainy evening',
+  'Underrated indie gems',
+];
 
-export interface AIDJState {
-  title?: string;
-  djMessage?: string;
-  tone?: 'emotional' | 'calm' | 'savage' | 'motivational';
+type DiscoveryResponse = {
+  query: string;
+  intent: MusicIntent;
+  results: Array<{ candidate: { title: string; artist: string }; track: Track }>;
+};
+
+type View = 'home' | 'search' | 'library' | 'settings';
+
+function formatTime(value: number) {
+  if (!Number.isFinite(value) || value < 0) return '0:00';
+  const minutes = Math.floor(value / 60);
+  const seconds = Math.floor(value % 60).toString().padStart(2, '0');
+  return `${minutes}:${seconds}`;
 }
 
-export default function Home() {
-  const [showSplash, setShowSplash] = useState(true);
-  const [songs, setSongs] = useState<Song[]>([]); 
-  const [currentMood, setCurrentMood] = useState("");
-  const [requestedCount, setRequestedCount] = useState(12);
-  const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState("teal");
-  const [lastUsedLanguage, setLastUsedLanguage] = useState("GLOBAL");
-  
-  const [googleAiKey, setGoogleAiKey] = useState<string | null>(null);
-  const [showKeyPortal, setShowKeyPortal] = useState(false);
-  const hasShownKeyPortalRef = useRef(false);
-  
-  const [dynamicColors, setDynamicColors] = useState(true);
-  const [downloadMethod, setDownloadMethod] = useState<'organic' | 'syncx' | 'faces100'>('organic');
-  const [playbackMode, setPlaybackMode] = useState<'audio' | 'video'>('video');
-  
-  const [exporting, setExporting] = useState(false);
-  const [exportSuccess, setExportSuccess] = useState(false);
-  const [isMajorBlocked, setIsMajorBlocked] = useState(false);
-  const [isContaminated, setIsContaminated] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [showExportGuide, setShowExportGuide] = useState(false);
-  const [hasSeenGuide, setHasSeenGuide] = useState(false);
-  
-  const [extractedHue, setExtractedHue] = useState<number | null>(null);
-  const [aiDjResponse, setAiDjResponse] = useState<AIDJState | null>(null);
-  const [isHistoryView, setIsHistoryView] = useState(false);
-  const [currentVibeId, setCurrentVibeId] = useState<string | null>(null);
-
-  // Lifted global memory state to resolve repeated songs bug
-  const [globalSeenTitles, setGlobalSeenTitles] = useState<string[]>([]);
-
-  const allSongsBufferRef = useRef<Song[]>([]);
-  const activeSessionIdRef = useRef<string | null>(null);
-  const resolvedTitlesRegistry = useRef<Set<string>>(new Set());
-  const inFlightResolutions = useRef<Set<string>>(new Set());
-
-  const resultsRef = useRef<HTMLDivElement>(null);
-  const { feedback } = useVibeFeedback();
-
-  const handleMissingKey = useCallback(() => {
-    if (!hasShownKeyPortalRef.current) {
-      setShowKeyPortal(true);
-      hasShownKeyPortalRef.current = true;
-    }
-  }, []);
-
-  const playback = usePlayback({
-    feedback,
-    isMajorBlocked,
-    isContaminated,
-    songs,
-    allSongsBufferRef,
-    activeSessionIdRef,
-    resolvedTitlesRegistry,
-    inFlightResolutions
-  });
-
-  const generation = useGenerationSession({
-    googleAiKey,
-    globalSeenTitles,
-    onMissingKey: handleMissingKey,
-    feedback,
-    setSongs,
-    setAiDjResponse,
-    setVideoLinks: playback.setVideoLinks,
-    setConsoleLogs,
-    setCurrentMood,
-    setRequestedCount,
-    setIsMajorBlocked,
-    setIsContaminated,
-    setIsError,
-    setIsHistoryView,
-    setExportSuccess,
-    setExporting,
-    allSongsBufferRef,
-    activeSessionIdRef,
-    resolvedTitlesRegistry,
-    inFlightResolutions,
-    resultsRef
-  });
-
-  const historyManager = useHistoryManager({
-    resetSession: generation.resetSession,
-    setSongs,
-    setAiDjResponse,
-    setVideoLinks: playback.setVideoLinks,
-    setConsoleLogs,
-    setCurrentMood,
-    setCurrentVibeId,
-    setRequestedCount,
-    setIsHistoryView,
-    isHistoryView,
-    resultsRef,
-    feedback,
-    globalSeenTitles,
-    setGlobalSeenTitles
-  });
-
-  useEffect(() => {
-    setIsMounted(true);
-    preWarmEngine();
-
-    const savedKey = localStorage.getItem(GOOGLE_AI_KEY_STORAGE);
-    if (savedKey) setGoogleAiKey(savedKey);
-    
-    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-    if (savedTheme) setCurrentTheme(savedTheme);
-
-    const seenGuide = localStorage.getItem(GUID_STORAGE_KEY);
-    if (savedTheme) setHasSeenGuide(true);
-
-    const savedMode = localStorage.getItem(PLAYBACK_MODE_KEY);
-    if (savedMode === 'audio' || savedMode === 'video') setPlaybackMode(savedMode);
-
-    const savedDownload = localStorage.getItem(DOWNLOAD_METHOD_KEY);
-    if (savedDownload === 'organic' || savedDownload === 'syncx' || savedDownload === 'faces100') {
-      setDownloadMethod(savedDownload);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!generation.isGenerating && generation.currentVibeId && allSongsBufferRef.current.length > 0) {
-      const timeout = setTimeout(() => {
-        historyManager.commitToHistory(generation.currentVibeId!, currentMood, aiDjResponse, allSongsBufferRef.current, playback.videoLinks);
-      }, 3000); 
-      return () => clearTimeout(timeout);
-    }
-  }, [generation.isGenerating, generation.currentVibeId, currentMood, aiDjResponse, playback.videoLinks, historyManager, allSongsBufferRef]);
-
-  useEffect(() => {
-    if (!generation.isGenerating || isMajorBlocked || isContaminated || !generation.currentVibeId) return;
-    const sessionAtStart = generation.currentVibeId;
-
-    generation.typingTimerRef.current = setInterval(() => {
-      if (activeSessionIdRef.current !== sessionAtStart) {
-        clearInterval(generation.typingTimerRef.current);
-        return;
-      }
-      
-      setSongs(curr => {
-        const nextIdx = curr.length;
-        if (generation.isFetchingRef.current && nextIdx >= allSongsBufferRef.current.length) {
-          return curr;
-        }
-
-        if (!generation.isFetchingRef.current && nextIdx >= allSongsBufferRef.current.length) {
-          generation.setIsGenerating(false);
-          clearInterval(generation.typingTimerRef.current);
-          return curr;
-        }
-        
-        const nextSong = allSongsBufferRef.current[nextIdx];
-        if (nextSong) {
-          requestAnimationFrame(() => feedback('tick'));
-          return [...curr, nextSong];
-        }
-        return curr;
-      });
-    }, 160);
-
-    return () => clearInterval(generation.typingTimerRef.current);
-  }, [generation.isGenerating, isMajorBlocked, isContaminated, generation.currentVibeId, feedback, generation.isFetchingRef, allSongsBufferRef, activeSessionIdRef, generation.setIsGenerating, generation.typingTimerRef]);
-
-  const executeExport = useCallback(async (hideAgain?: boolean) => {
-    if (hideAgain) {
-      localStorage.setItem(GUID_STORAGE_KEY, "true");
-      setHasSeenGuide(true);
-    }
-    const validIds = songs.map(s => playback.videoLinks[s.title]?.videoId).filter(Boolean);
-    if (validIds.length === 0) return;
-    
-    feedback('click');
-    setExporting(true);
-    try {
-      const tlggId = await getTLGGPlaylistId(validIds as string[]);
-      const url = tlggId 
-        ? `https://music.youtube.com/watch?v=${validIds[0]}&list=${tlggId}` 
-        : `https://www.youtube.com/watch_videos?video_ids=${validIds.join(',')}`;
-      window.open(url, '_blank');
-      setExportSuccess(true);
-      feedback('success');
-    } catch (e) {
-      const fallbackUrl = `https://www.youtube.com/watch_videos?video_ids=${validIds.join(',')}`;
-      window.open(fallbackUrl, '_blank');
-    } finally { setExporting(false); setShowExportGuide(false); }
-  }, [songs, playback.videoLinks, feedback]);
-
-  const immersiveStyles = useMemo(() => {
-    if (currentTheme === 'immersive' && extractedHue !== null) {
-      const h = extractedHue;
-      return {
-        '--background':        `${h} 35% 8%`,
-        '--foreground':        `${h} 15% 95%`,
-        '--card':              `${h} 30% 12%`,
-        '--card-foreground':   `${h} 10% 95%`,
-        '--popover':           `${h} 30% 10%`,
-        '--popover-foreground':`${h} 10% 95%`,
-        '--primary':           `${h} 85% 65%`,
-        '--primary-foreground':`${h} 50% 5%`,
-        '--secondary':         `${h} 20% 16%`,
-        '--secondary-foreground': `${h} 10% 85%`,
-        '--muted':             `${h} 20% 14%`,
-        '--muted-foreground':  `${h} 15% 55%`,
-        '--accent':            `${(h + 40) % 360} 80% 68%`,
-        '--accent-foreground': `${(h + 40) % 360} 50% 5%`,
-        '--border':            `${h} 25% 20%`,
-        '--input':             `${h} 25% 18%`,
-        '--ring':              `${h} 85% 65%`,
-        'transition':          'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-        'willChange':          'background-color, color',
-      } as React.CSSProperties;
-    }
-    return {};
-  }, [currentTheme, extractedHue]);
-
-  const updateDownloadMethod = useCallback((val: 'organic' | 'syncx' | 'faces100') => {
-    setDownloadMethod(val);
-    localStorage.setItem(DOWNLOAD_METHOD_KEY, val);
-  }, []);
-
-  const handleTrackEnd = useCallback(() => {
-    if (!playback.activeTrack || songs.length === 0) return;
-    const currentIndex = songs.findIndex(s => 
-      playback.videoLinks[s.title]?.videoId === playback.activeTrack?.videoId
-    );
-    const nextIndex = currentIndex + 1;
-    if (nextIndex < songs.length) {
-      playback.handlePlaySong(songs[nextIndex]);
-    }
-  }, [playback.activeTrack, songs, playback.videoLinks, playback.handlePlaySong]);
-
-  if (!isMounted) return null;
-
-  return (
-    <>
-      <main 
-        style={immersiveStyles}
-        className="min-h-screen relative flex flex-col items-center bg-background overflow-x-hidden transform-gpu"
-      >
-        <VibeBackground activeHue={extractedHue !== null ? extractedHue : playback.activeTrack?.hue} isPlaying={!!playback.activeTrack} currentTheme={currentTheme} />
-        <AnimatePresence mode="wait">
-          {showSplash ? (
-            <OpeningScreen key="splash" onComplete={() => setShowSplash(false)} />
-          ) : (
-            <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full relative flex flex-col items-center pb-48">
-              <div className="fixed top-8 left-8 z-50 flex items-center gap-3">
-                <HistorySidebar history={historyManager.history} onSelect={historyManager.handleSelectHistory} onClear={() => { historyManager.setHistory([]); setGlobalSeenTitles([]); }} />
-                <SettingsDialog 
-                  dynamicColors={dynamicColors} setDynamicColors={setDynamicColors} 
-                  downloadMethod={downloadMethod} setDownloadMethod={updateDownloadMethod}
-                  cacheName="pulsyvibe_cache_v2" onReset={() => window.location.reload()}
-                  apiKey={googleAiKey} onUpdateKey={(key) => { localStorage.setItem(GOOGLE_AI_KEY_STORAGE, key); setGoogleAiKey(key); }}
-                  playbackMode={playbackMode} setPlaybackMode={setPlaybackMode}
-                />
-              </div>
-
-              <div className="fixed top-6 right-6 z-50 flex items-center gap-3">
-                <ThemeToggle currentTheme={currentTheme} onThemeChange={setCurrentTheme} />
-              </div>
-              
-              <div className="w-full max-w-[640px] mx-auto pt-24 md:pt-36 px-4 flex flex-col items-center gap-20">
-                <MoodInput onGenerate={generation.handleGenerate} onSearch={generation.handleSearchSpecific} isLoading={generation.isGenerating} currentTheme={currentTheme} activeHue={extractedHue} />
-                
-                <div ref={resultsRef} className="w-full scroll-mt-32 min-h-[400px]">
-                  <AnimatePresence mode="popLayout" initial={false}>
-                    {(isMajorBlocked || isContaminated) ? (
-                      <motion.div key="block" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-24 gap-8">
-                        <div className="w-56 h-56 rounded-[4rem] glass flex items-center justify-center text-8xl animate-bounce shadow-2xl">😂🫵</div>
-                        <h3 className="text-3xl font-black uppercase text-white tracking-[0.3em] text-center drop-shadow-xl">
-                          {isContaminated ? "Bro tried to sneak K-pop again" : "Nice try. No K-pop here."}
-                        </h3>
-                      </motion.div>
-                    ) : isError ? (
-                      <motion.div key="error" className="flex flex-col gap-12 w-full">
-                        <div className="flex flex-col items-center justify-center gap-8 max-w-md mx-auto text-center mb-10 py-12 glass-bento rounded-[3rem]">
-                          <div className="w-24 h-24 rounded-full glass flex items-center justify-center text-red-500 border border-red-500/10 shadow-lg">
-                            <AlertCircle size={40} />
-                          </div>
-                          <h3 className="text-2xl font-black text-white uppercase tracking-[0.3em]">AI Sync Fault</h3>
-                          <p className="text-xs text-muted-foreground font-black uppercase tracking-[0.4em] leading-relaxed px-10 opacity-60">AI is unavailable, attempting recovery...</p>
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => generation.handleGenerate(currentMood, requestedCount, lastUsedLanguage)}
-                            className="mt-4 px-10 py-5 rounded-full bg-primary text-primary-foreground font-black text-xs uppercase tracking-[0.3em] flex items-center gap-3 shadow-2xl btn-glow-primary"
-                          >
-                            <RefreshCcw size={16} />
-                            Retry Sync
-                          </motion.button>
-                        </div>
-                      </motion.div>
-                    ) : (songs.length > 0 || generation.isGenerating) && (
-                      <motion.div key={`results-${generation.currentVibeId}`} initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-12 w-full">
-                        <div className="flex flex-col pb-10 px-10 gap-4 relative overflow-hidden glass-bento rounded-[3rem] pt-10 bg-gradient-to-br from-primary/5 via-white/[0.01] to-transparent">
-                          <div className="space-y-3 relative">
-                            <div className="flex items-center gap-3">
-                              <Sparkles size={14} className="text-primary animate-pulse" />
-                              <p className="text-[11px] font-black text-primary uppercase tracking-[0.5em] opacity-60">Cognitive Journey</p>
-                            </div>
-                            <h3 className="text-[clamp(1.7rem,7vw,2.5rem)] font-black tracking-tight text-white uppercase leading-tight drop-shadow-2xl">
-                              <span className="text-gradient">{aiDjResponse?.title || currentMood}</span>
-                            </h3>
-                          </div>
-                        </div>
-                        <SongList 
-                          songs={songs} activeTrack={playback.activeTrack} loadingTrack={playback.loadingTrack}
-                          onPlay={playback.handlePlaySong} videoLinks={playback.videoLinks}
-                          downloadMethod={downloadMethod} isGenerating={generation.isGenerating}
-                          dynamicColors={dynamicColors}
-                          consoleLogs={consoleLogs} targetCount={requestedCount}
-                          sessionType={generation.sessionType} isHistoryView={isHistoryView}
-                          aiDjResponse={aiDjResponse}
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <ApiKeyDialog open={showKeyPortal} onOpenChange={setShowKeyPortal} onSave={(key) => { localStorage.setItem(GOOGLE_AI_KEY_STORAGE, key); setGoogleAiKey(key); }} />
-        <ExportGuideDialog open={showExportGuide} onOpenChange={setShowExportGuide} onConfirm={executeExport} isLoading={exporting} />
-      </main>
-      <PersistentPlayer 
-        activeTrack={playback.activeTrack} 
-        playbackMode={playbackMode} 
-        currentTheme={currentTheme}
-        onColorExtract={(hue) => {
-          setExtractedHue(hue);
-        }} 
-        onTrackEnd={handleTrackEnd}
-      />
-      <ExportFAB 
-        isVisible={songs.length > 0 && !isMajorBlocked && !isContaminated} 
-        onClick={() => {
-          if (hasSeenGuide) {
-            executeExport();
-          } else {
-            feedback('click');
-            setShowExportGuide(true);
-          }
-        }} 
-        isLoading={exporting} 
-        isSuccess={exportSuccess} 
-        isPlayerActive={!!playback.activeTrack} 
-      />
-    </>
+function TrackArt({ track, size = 'md' }: { track: Track; size?: 'sm' | 'md' | 'lg' }) {
+  const dimensions = size === 'lg' ? 'h-28 w-28 sm:h-36 sm:w-36' : size === 'sm' ? 'h-11 w-11' : 'h-14 w-14';
+  return track.thumbnail ? (
+    <img src={track.thumbnail} alt="" className={`${dimensions} shrink-0 rounded-xl object-cover`} />
+  ) : (
+    <div className={`${dimensions} flex shrink-0 items-center justify-center rounded-xl bg-primary/15`}>
+      <Sparkles className="text-primary" size={size === 'lg' ? 30 : 20} />
+    </div>
   );
 }
+
+function TrackRow({ track, onPlay, onQueue, onFavorite, active, favorite }: {
+  track: Track;
+  onPlay: () => void;
+  onQueue: () => void;
+  onFavorite?: () => void;
+  active: boolean;
+  favorite?: boolean;
+}) {
+  return (
+    <div className={`group flex items-center gap-3 rounded-2xl p-2.5 transition sm:p-3 ${active ? 'bg-primary/10' : 'hover:bg-white/[0.04]'}`}>
+      <button aria-label={`Play ${track.title}`} onClick={onPlay} className="relative shrink-0">
+        <TrackArt track={track} />
+        <span className="absolute inset-0 hidden items-center justify-center rounded-xl bg-black/60 group-hover:flex">
+          {active ? <Pause size={20} /> : <Play size={20} fill="currentColor" />}
+        </span>
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold">{track.title}</p>
+        <p className="truncate text-xs text-muted-foreground">{track.artist}</p>
+      </div>
+      <span className="hidden text-[11px] text-muted-foreground sm:block">{track.duration ? formatTime(track.duration) : ''}</span>
+      {onFavorite && <button aria-label={`Favorite ${track.title}`} onClick={onFavorite} className={`rounded-full p-2 ${favorite ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Heart size={17} fill={favorite ? 'currentColor' : 'none'} /></button>}
+      <button aria-label={`Add ${track.title} to queue`} onClick={onQueue} className="rounded-full p-2 text-muted-foreground hover:bg-white/10 hover:text-foreground"><Plus size={18} /></button>
+      <button aria-label={`More actions for ${track.title}`} className="hidden rounded-full p-2 text-muted-foreground hover:bg-white/10 sm:block"><MoreHorizontal size={18} /></button>
+    </div>
+  );
+}
+
+export default function HomePage() {
+  const [view, setView] = useState<View>('home');
+  const [query, setQuery] = useState('');
+  const [lastQuery, setLastQuery] = useState('');
+  const [intent, setIntent] = useState<MusicIntent | null>(null);
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [recentQueries, setRecentQueries] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<Track[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [playerOpen, setPlayerOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const player = useYouTubePlayer();
+  const current = player.state.player.currentTrack;
+  const progress = player.state.player.duration > 0
+    ? Math.min(100, (player.state.player.currentTime / player.state.player.duration) * 100)
+    : 0;
+  const verifiedTracks = useMemo(() => tracks.filter(track => track.status === 'verified'), [tracks]);
+  const unavailableCount = tracks.length - verifiedTracks.length;
+
+  async function discover(text: string) {
+    const value = text.trim();
+    if (!value || isSearching) return;
+
+    setQuery(value);
+    setLastQuery(value);
+    setError(null);
+    setIsSearching(true);
+    setView('search');
+
+    try {
+      const response = await fetch('/api/discovery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: value, count: 20, mode: 'batch' }),
+      });
+      const data: unknown = await response.json();
+      if (!response.ok) {
+        const message = typeof data === 'object' && data !== null && 'error' in data && typeof data.error === 'string'
+          ? data.error
+          : 'Discovery failed.';
+        throw new Error(message);
+      }
+      const result = data as DiscoveryResponse;
+      setIntent(result.intent);
+      setTracks(result.results.map(item => item.track));
+      setRecentQueries(previous => [value, ...previous.filter(item => item !== value)].slice(0, 8));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Discovery failed.');
+      setTracks([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    void discover(query);
+  }
+
+  function playTrack(track: Track) {
+    if (track.status !== 'verified') return;
+    const index = player.state.queue.items.findIndex(item => item.id === track.id);
+    if (index >= 0) {
+      void player.playAt(index);
+      return;
+    }
+    const nextIndex = player.state.queue.items.length;
+    player.enqueue([track]);
+    void player.playAt(nextIndex);
+  }
+
+  function playAll() {
+    if (!verifiedTracks.length) return;
+    const startIndex = player.state.queue.items.length;
+    player.enqueue(verifiedTracks);
+    void player.playAt(startIndex);
+  }
+
+  function toggleFavorite(track: Track) {
+    setFavorites(previous => previous.some(item => item.id === track.id)
+      ? previous.filter(item => item.id !== track.id)
+      : [...previous, track]);
+  }
+
+  return (
+    <main className="min-h-screen bg-background pb-28 text-foreground md:pb-8">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1500px]">
+        <aside className="hidden w-60 shrink-0 border-r border-white/[0.06] px-5 py-7 md:flex md:flex-col">
+          <button onClick={() => setView('home')} className="mb-10 flex items-center gap-3 px-2 text-left">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/15 text-primary"><Sparkles size={22} /></span>
+            <span><strong className="block text-lg tracking-tight">PulsyVibe</strong><small className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">V2 discovery</small></span>
+          </button>
+          <nav className="space-y-1">
+            {([
+              ['home', Home, 'Home'],
+              ['search', Search, 'Discover'],
+              ['library', ListMusic, 'Library'],
+              ['settings', Settings, 'Settings'],
+            ] as const).map(([id, Icon, label]) => (
+              <button key={id} onClick={() => setView(id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${view === id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'}`}>
+                <Icon size={19} />{label}
+              </button>
+            ))}
+          </nav>
+          <div className="mt-auto rounded-2xl border border-white/[0.06] bg-white/[0.025] p-4 text-xs text-muted-foreground">
+            <p className="mb-1 font-semibold text-foreground">AI finds the song.</p>
+            <p>YouTube resolution and playback stay separate from recommendations.</p>
+          </div>
+        </aside>
+
+        <section className="min-w-0 flex-1 px-4 py-5 sm:px-6 md:px-10 md:py-8">
+          <header className="mb-8 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 md:hidden"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary"><Sparkles size={19} /></span><strong>PulsyVibe</strong></div>
+            <p className="hidden text-xs uppercase tracking-[0.22em] text-muted-foreground md:block">
+              {view === 'home' ? 'Your music space' : view === 'search' ? 'Discovery' : view === 'library' ? 'Your library' : 'Preferences'}
+            </p>
+            <div className="relative ml-auto md:hidden">
+              <button onClick={() => setMenuOpen(value => !value)} aria-label="Open menu" className="rounded-full border border-white/[0.07] bg-white/[0.025] p-2.5"><Menu size={20} /></button>
+              {menuOpen && <div className="absolute right-0 top-12 z-30 w-44 rounded-2xl border border-white/10 bg-[#151515] p-2 shadow-2xl">
+                {([['home', 'Home'], ['search', 'Discover'], ['library', 'Library'], ['settings', 'Settings']] as const).map(([id, label]) => (
+                  <button key={id} onClick={() => { setView(id); setMenuOpen(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-white/10">{label}</button>
+                ))}
+              </div>}
+            </div>
+          </header>
+
+          {view === 'home' && <div className="mx-auto max-w-5xl">
+            <section className="mb-10 pt-4 sm:pt-10">
+              <p className="mb-3 flex items-center gap-2 text-sm font-medium text-primary"><Sparkles size={16} /> AI music discovery</p>
+              <h1 className="max-w-3xl text-4xl font-black tracking-tight sm:text-6xl">Tell PulsyVibe what you want to hear.</h1>
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">Describe a mood, activity, era, artist, genre, language, or just a feeling. PulsyVibe turns it into verified playable tracks.</p>
+            </section>
+            <DiscoveryForm query={query} setQuery={setQuery} isSearching={isSearching} onSubmit={submit} />
+            <div className="mb-12 flex gap-2 overflow-x-auto pb-1">{QUICK_VIBES.map(vibe => <button key={vibe} onClick={() => void discover(vibe)} className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.025] px-4 py-2 text-xs text-muted-foreground hover:border-primary/30 hover:text-foreground">{vibe}</button>)}</div>
+            {recentQueries.length > 0 && <section><SectionTitle icon={<Clock3 size={17} />} title="Recent discoveries" /><div className="grid gap-2 sm:grid-cols-2">{recentQueries.slice(0, 6).map(item => <button key={item} onClick={() => void discover(item)} className="flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-left text-sm"><Clock3 size={15} className="text-muted-foreground" /><span className="truncate">{item}</span></button>)}</div></section>}
+          </div>}
+
+          {view === 'search' && <div className="mx-auto max-w-5xl">
+            <DiscoveryForm query={query} setQuery={setQuery} isSearching={isSearching} onSubmit={submit} compact />
+            {isSearching && <LoadingResults />}
+            {error && !isSearching && <StateCard title="Discovery failed" message={error} action="Try again" onAction={() => void discover(lastQuery)} />}
+            {!isSearching && !error && tracks.length === 0 && <StateCard title="Nothing here yet" message="Describe what you want to hear and the V2 discovery engine will build a result set." action="Go home" onAction={() => setView('home')} />}
+            {!isSearching && !error && tracks.length > 0 && <>
+              <div className="mb-6 rounded-3xl border border-white/[0.06] bg-white/[0.025] p-5"><p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">AI intent</p><h2 className="mt-1 text-lg font-bold">{intent?.query || lastQuery}</h2><div className="mt-3 flex flex-wrap gap-2 text-[11px] text-muted-foreground">{intent?.mode && <span className="rounded-full bg-white/[0.06] px-2.5 py-1">{intent.mode}</span>}{intent?.languages?.map(item => <span key={item} className="rounded-full bg-white/[0.06] px-2.5 py-1">{item}</span>)}{intent?.genres?.map(item => <span key={item} className="rounded-full bg-white/[0.06] px-2.5 py-1">{item}</span>)}</div></div>
+              <div className="mb-4 flex items-end justify-between"><div><h2 className="text-xl font-bold">Results</h2><p className="mt-1 text-xs text-muted-foreground">{verifiedTracks.length} playable{unavailableCount ? ` · ${unavailableCount} unavailable` : ''}</p></div><button onClick={playAll} disabled={!verifiedTracks.length} className="flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground disabled:opacity-40"><Play size={15} fill="currentColor" /> Play all</button></div>
+              <div className="space-y-1">{tracks.map(track => track.status === 'verified' ? <TrackRow key={track.id} track={track} active={current?.id === track.id} onPlay={() => playTrack(track)} onQueue={() => player.enqueue([track])} onFavorite={() => toggleFavorite(track)} favorite={favorites.some(item => item.id === track.id)} /> : <div key={track.id} className="flex items-center gap-3 rounded-2xl p-3 opacity-50"><div className="h-14 w-14 rounded-xl border border-dashed border-white/10" /><div><p className="text-sm font-medium">{track.title}</p><p className="text-xs text-muted-foreground">{track.artist} · unavailable</p></div></div>)}</div>
+            </>}
+          </div>}
+
+          {view === 'library' && <div className="mx-auto max-w-5xl"><h1 className="mb-2 text-3xl font-black">Library</h1><p className="mb-8 text-sm text-muted-foreground">Favorites and the active playback queue.</p><SectionTitle icon={<Heart size={17} />} title="Favorites" />{favorites.length ? <div className="space-y-1">{favorites.map(track => <TrackRow key={track.id} track={track} active={current?.id === track.id} onPlay={() => playTrack(track)} onQueue={() => player.enqueue([track])} favorite />)}</div> : <StateCard title="No favorites yet" message="Tap the heart on a discovered track to keep it here." />}</div>}
+
+          {view === 'settings' && <div className="mx-auto max-w-3xl"><h1 className="mb-2 text-3xl font-black">Settings</h1><p className="mb-8 text-sm text-muted-foreground">V2 playback controls and implementation boundaries.</p><SettingRow icon={<Shuffle size={18} />} title="Shuffle" description="Randomize the next queue item." value={player.state.queue.shuffle ? 'On' : 'Off'} onClick={() => player.setShuffle(!player.state.queue.shuffle)} /><SettingRow icon={<Repeat size={18} />} title="Repeat" description="Repeat the current track or the whole queue." value={player.state.queue.repeat} onClick={() => player.setRepeat(player.state.queue.repeat === 'off' ? 'all' : player.state.queue.repeat === 'all' ? 'one' : 'off')} /><SettingRow icon={<Volume2 size={18} />} title="Playback source" description="Official YouTube IFrame Player API; no extracted media URLs." value="YouTube" /></div>}
+        </section>
+      </div>
+
+      {current && <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.08] bg-[#101010]/95 backdrop-blur-2xl md:bottom-4 md:left-1/2 md:right-auto md:w-[min(760px,calc(100%-32px))] md:-translate-x-1/2 md:rounded-3xl md:border">
+        <div className="px-3 pt-2"><div className="mb-2 h-0.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-primary" style={{ width: `${progress}%` }} /></div><div className="flex items-center gap-3 pb-2"><button onClick={() => setPlayerOpen(true)} className="min-w-0 flex-1 text-left"><div className="flex items-center gap-3"><TrackArt track={current} size="sm" /><div className="min-w-0"><p className="truncate text-xs font-semibold">{current.title}</p><p className="truncate text-[11px] text-muted-foreground">{current.artist}</p></div></div></button><button onClick={() => void player.previous()} aria-label="Previous"><SkipBack size={18} /></button><button onClick={() => player.state.player.status === 'playing' ? player.pause() : void player.play()} aria-label="Play or pause" className="rounded-full bg-foreground p-2 text-background">{player.state.player.status === 'playing' ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}</button><button onClick={() => void player.next()} aria-label="Next"><SkipForward size={18} /></button><button onClick={() => setPlayerOpen(true)} aria-label="Open player"><ChevronUp size={18} /></button></div></div>
+        <nav className="grid grid-cols-4 border-t border-white/[0.06] px-2 py-2 md:hidden"><MobileNav active={view === 'home'} icon={<Home size={18} />} label="Home" onClick={() => setView('home')} /><MobileNav active={view === 'search'} icon={<Search size={18} />} label="Discover" onClick={() => setView('search')} /><MobileNav active={view === 'library'} icon={<Heart size={18} />} label="Library" onClick={() => setView('library')} /><MobileNav active={view === 'settings'} icon={<Settings size={18} />} label="Settings" onClick={() => setView('settings')} /></nav>
+      </div>}
+
+      <div ref={player.containerRef} className={playerOpen ? 'fixed left-1/2 top-1/2 z-[60] h-[min(62vw,520px)] w-[min(92vw,800px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl' : 'fixed -left-[9999px] top-0 h-1 w-1 overflow-hidden'} />
+      {playerOpen && current && <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm" onClick={() => setPlayerOpen(false)}><div className="pointer-events-auto absolute bottom-8 left-1/2 flex w-[min(92vw,800px)] -translate-x-1/2 items-center justify-between rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3"><div className="min-w-0"><p className="truncate text-sm font-bold">{current.title}</p><p className="truncate text-xs text-white/60">{current.artist}</p></div><button aria-label="Close player" className="rounded-full bg-white/10 p-2" onClick={() => setPlayerOpen(false)}><X size={17} /></button></div></div>}
+    </main>
+  );
+}
+
+function DiscoveryForm({ query, setQuery, isSearching, onSubmit, compact = false }: { query: string; setQuery: (value: string) => void; isSearching: boolean; onSubmit: (event: FormEvent) => void; compact?: boolean }) {
+  return <form onSubmit={onSubmit} className={`${compact ? 'mb-7' : 'mb-8'} rounded-3xl border border-white/10 bg-white/[0.035] p-2`}><div className="flex items-center gap-2"><Search className="ml-3 text-muted-foreground" size={20} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder={compact ? 'Search or describe a vibe...' : 'e.g. songs for a 2am drive through the city'} className="min-w-0 flex-1 bg-transparent px-1 py-4 text-sm outline-none placeholder:text-muted-foreground/60 sm:text-base" /><button disabled={!query.trim() || isSearching} className="rounded-2xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40">{isSearching ? <Loader2 className="animate-spin" size={18} /> : compact ? 'Search' : 'Discover'}</button></div></form>;
+}
+
+function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) { return <div className="mb-3 flex items-center gap-2 text-sm font-bold">{icon}<span>{title}</span></div>; }
+function LoadingResults() { return <div className="space-y-2">{Array.from({ length: 7 }).map((_, index) => <div key={index} className="flex items-center gap-3 rounded-2xl p-3"><div className="h-14 w-14 animate-pulse rounded-xl bg-white/[0.06]" /><div className="flex-1 space-y-2"><div className="h-3 w-2/5 animate-pulse rounded bg-white/[0.06]" /><div className="h-2.5 w-1/4 animate-pulse rounded bg-white/[0.04]" /></div></div>)}</div>; }
+function StateCard({ title, message, action, onAction }: { title: string; message: string; action?: string; onAction?: () => void }) { return <div className="rounded-3xl border border-white/[0.07] bg-white/[0.025] p-10 text-center"><div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.05] text-primary"><Sparkles size={21} /></div><h2 className="text-lg font-bold">{title}</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">{message}</p>{action && onAction && <button onClick={onAction} className="mt-5 rounded-full bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground">{action}</button>}</div>; }
+function MobileNav({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) { return <button onClick={onClick} className={`flex flex-col items-center gap-1 rounded-xl py-1.5 text-[10px] ${active ? 'text-primary' : 'text-muted-foreground'}`}>{icon}{label}</button>; }
+function SettingRow({ icon, title, description, value, onClick }: { icon: ReactNode; title: string; description: string; value: string; onClick?: () => void }) { return <button disabled={!onClick} onClick={onClick} className="flex w-full items-center gap-3 border-b border-white/[0.06] py-5 text-left last:border-0 disabled:cursor-default"><span className="rounded-xl bg-white/[0.05] p-2.5">{icon}</span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{title}</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span></span><span className="shrink-0 rounded-full bg-white/[0.06] px-3 py-1.5 text-[11px] capitalize">{value}</span></button>; }
