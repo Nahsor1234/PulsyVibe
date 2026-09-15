@@ -9,9 +9,19 @@ type TransitionDirection = 'forward' | 'back';
 
 const NAV = [
   ['home', Home, 'Home'],
-  ['search', Search, 'Discover'],
   ['history', History, 'History'],
 ] as const;
+
+function PulsyVibeMark({ className = 'h-8 w-8' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 100" className={className} fill="none" aria-hidden="true">
+      <circle cx="50" cy="50" r="46" fill="#121318" stroke="#252836" strokeWidth="2" />
+      <path d="M26 50C26 50 32 30 38 50C44 70 48 20 54 50C60 80 66 40 74 50" stroke="#8B7CFF" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="54" cy="50" r="3.5" fill="#A99CFF" />
+      <path d="M72 28L75 25M72 25L75 28" stroke="#A99CFF" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 export function AppShell({ view, onNavigate, onSearch, transitionDirection = 'forward', children }: {
   view: View;
@@ -27,18 +37,12 @@ export function AppShell({ view, onNavigate, onSearch, transitionDirection = 'fo
       <div className="mx-auto flex min-h-screen w-full max-w-[1500px]">
         <aside className="hidden w-64 shrink-0 border-r border-white/[0.06] bg-[#09090b] px-5 py-7 md:flex md:flex-col">
           <button onClick={() => onNavigate('home')} className="mb-10 flex items-center gap-3 px-2 text-left">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-primary">
-              <svg viewBox="0 0 40 40" className="h-6 w-6" aria-hidden="true" fill="none">
-                <path d="M11 24.5 16.5 13l4.6 9.3L25 15l4 8.4" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M9 28.5h22" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
-              </svg>
-            </span>
+            <PulsyVibeMark className="h-10 w-10" />
             <span><strong className="block text-lg tracking-tight">PulsyVibe</strong><small className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">AI music discovery</small></span>
           </button>
           <nav className="space-y-1">
             {([
               ['home', Home, 'Home'],
-              ['search', Search, 'Discover'],
               ['history', History, 'History'],
               ['settings', Settings, 'Settings'],
             ] as const).map(([id, Icon, label]) => (
@@ -56,9 +60,7 @@ export function AppShell({ view, onNavigate, onSearch, transitionDirection = 'fo
         <section className="min-w-0 flex-1 px-4 py-5 pb-28 sm:px-6 md:px-10 md:py-8 md:pb-8">
           <header className="mb-7 flex items-center justify-between gap-3 md:hidden">
             <button onClick={() => onNavigate('home')} className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-primary">
-                <svg viewBox="0 0 40 40" className="h-5 w-5" aria-hidden="true" fill="none"><path d="M11 24.5 16.5 13l4.6 9.3L25 15l4 8.4" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" /><path d="M9 28.5h22" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" /></svg>
-              </span>
+              <PulsyVibeMark className="h-9 w-9" />
               <strong>PulsyVibe</strong>
             </button>
             <button onClick={() => onNavigate('settings')} aria-label="Open settings" className={`rounded-full border border-white/[0.09] bg-[#111113] p-2.5 ${view === 'settings' ? 'text-primary' : 'text-white/65'}`}><Settings size={18} /></button>
@@ -66,26 +68,26 @@ export function AppShell({ view, onNavigate, onSearch, transitionDirection = 'fo
 
           <p className="mb-7 hidden text-xs uppercase tracking-[0.22em] text-muted-foreground md:block">{view === 'home' ? 'Your music space' : view === 'search' ? 'AI discovery' : view === 'history' ? 'Discovery history' : 'Preferences'}</p>
 
-          <div key={`${view}-${transitionDirection}`} className={`pv-screen pv-screen-${transitionDirection}`}>
+          <div key={`${view}-${transitionDirection}`} className={`pv-screen pv-screen-${view} pv-screen-${transitionDirection}`}>
             {children}
           </div>
         </section>
       </div>
 
-      <nav className="pv-floating-nav fixed bottom-[max(.65rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[min(82vw,330px)] -translate-x-1/2 items-center gap-1.5 md:hidden" aria-label="Primary navigation">
-        <div className="pv-floating-nav-pill relative flex min-w-0 flex-1 items-center rounded-[1.15rem] border border-white/[0.1] bg-[#111113] p-1 shadow-[0_14px_42px_rgba(0,0,0,.56)]" style={{ '--pv-nav-index': activeIndex } as CSSProperties}>
+      <nav className="pv-floating-nav fixed bottom-[max(.65rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex -translate-x-1/2 items-center gap-2" aria-label="Primary navigation">
+        <div className="pv-floating-nav-pill relative flex h-[50px] w-[260px] items-center justify-between rounded-full border border-white/[0.08] bg-[#111113] px-2 shadow-[0_4px_24px_rgba(0,0,0,0.42)]" style={{ '--pv-nav-index': activeIndex } as CSSProperties}>
           <span className="pv-floating-nav-indicator" aria-hidden="true" />
           {NAV.map(([id, Icon, label]) => {
             const active = view === id;
             return (
-              <button key={id} onClick={() => onNavigate(id)} aria-current={active ? 'page' : undefined} className={`pv-floating-nav-item relative z-10 flex min-h-10 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[0.9rem] px-1 py-1.5 text-[9px] font-medium ${active ? 'is-active text-primary' : 'text-white/48'}`}>
-                <Icon size={17} strokeWidth={2.1} />
+              <button key={id} onClick={() => onNavigate(id)} aria-current={active ? 'page' : undefined} className={`pv-floating-nav-item relative z-10 flex h-11 min-w-[72px] flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-medium transition-colors ${active ? 'is-active text-primary' : 'text-white/48'}`}>
+                <Icon size={19} strokeWidth={2} />
                 <span>{label}</span>
               </button>
             );
           })}
         </div>
-        <button onClick={() => onNavigate('settings')} aria-label="Open settings" aria-current={view === 'settings' ? 'page' : undefined} className={`pv-floating-settings flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/[0.1] bg-[#111113] shadow-[0_14px_42px_rgba(0,0,0,.56)] ${view === 'settings' ? 'text-primary' : 'text-white/52'}`}><Settings size={17} /></button>
+        <button onClick={() => onNavigate('settings')} aria-label="Open settings" aria-current={view === 'settings' ? 'page' : undefined} className={`pv-floating-settings flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-full border border-white/[0.08] bg-[#111113] shadow-[0_4px_24px_rgba(0,0,0,0.42)] ${view === 'settings' ? 'text-primary' : 'text-white/52'}`}><Settings size={19} /></button>
       </nav>
 
       <CommandPalette onNavigate={onNavigate} onSearch={onSearch} />
