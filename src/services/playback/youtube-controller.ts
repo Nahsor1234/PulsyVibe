@@ -160,6 +160,7 @@ export class YouTubePlaybackController {
     this.player.seek(nextSeconds);
     this.persistedCurrentTime = nextSeconds;
     this.persistPlayback();
+    this.emit();
   }
 
   setVolume(volume: number): void { if (this.destroyed || !this.mounted) return; this.player.setVolume(Math.max(0, Math.min(1, volume)) * 100); }
@@ -194,7 +195,7 @@ export class YouTubePlaybackController {
     this.syncPlayerState(snapshot);
     if (snapshot.state === 'playing' || snapshot.state === 'paused' || snapshot.state === 'buffering') this.persistedCurrentTime = snapshot.currentTime;
     if (snapshot.state === 'ended') { this.persistedCurrentTime = 0; void this.next(true); }
-    updateMediaSession(this.playerState.currentTrack, this.playerState);
+    updateMediaSession(this.playerState.currentTrack, { status: this.playerState.status, duration: this.playerState.duration, currentTime: this.playerState.currentTime });
     this.emit();
   }
 
