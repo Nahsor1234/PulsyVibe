@@ -1,130 +1,98 @@
-/* PulsyVibe V2 — Phase 8+: adaptive player, floating navigation, and motion. */
+/* PulsyVibe V2 — premium dark system, floating navigation, and motion. */
+
+:root {
+  --background: 240 8% 6% !important;
+  --foreground: 0 0% 97% !important;
+  --card: 240 7% 9% !important;
+  --card-foreground: 0 0% 97% !important;
+  --popover: 240 8% 8% !important;
+  --popover-foreground: 0 0% 97% !important;
+  --primary: 255 92% 74% !important;
+  --primary-foreground: 240 18% 8% !important;
+  --secondary: 240 7% 13% !important;
+  --secondary-foreground: 0 0% 96% !important;
+  --muted: 240 7% 12% !important;
+  --muted-foreground: 240 5% 64% !important;
+  --accent: 255 90% 78% !important;
+  --accent-foreground: 0 0% 98% !important;
+  --border: 240 7% 18% !important;
+  --input: 240 7% 16% !important;
+  --ring: 255 92% 74% !important;
+}
+
+html,
+body { background-color: hsl(240 8% 6%) !important; }
 
 button,
 a { touch-action: manipulation; }
-
-button:not(:disabled) {
-  transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
-}
+button:not(:disabled) { transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease; }
 button:not(:disabled):active { transform: scale(.975); }
 button:disabled { cursor: not-allowed; }
 img { content-visibility: auto; }
-input,
-button { -webkit-user-select: none; user-select: none; }
+input, button { -webkit-user-select: none; user-select: none; }
 input { user-select: text; }
-
-::selection { background: hsl(var(--primary) / .28); color: hsl(var(--foreground)); }
+::selection { background: hsl(var(--primary) / .24); color: hsl(var(--foreground)); }
 
 ::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 220ms;
-  animation-timing-function: ease;
-}
+::view-transition-new(root) { animation-duration: 220ms; animation-timing-function: ease; }
 ::view-transition-old(root) { animation-name: pv-view-out; }
 ::view-transition-new(root) { animation-name: pv-view-in; }
 
 @media (min-width: 768px) {
   main > div > aside nav button { position: relative; overflow: hidden; }
-  main > div > aside nav button::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 20%;
-    bottom: 20%;
-    width: 2px;
-    border-radius: 999px;
-    background: hsl(var(--primary));
-    opacity: 0;
-    transform: scaleY(.4);
-    transition: opacity 160ms ease, transform 160ms ease;
-  }
+  main > div > aside nav button::before { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: 2px; border-radius: 999px; background: hsl(var(--primary)); opacity: 0; transform: scaleY(.4); transition: opacity 160ms ease, transform 160ms ease; }
   main > div > aside nav button:hover::before,
   main > div > aside nav button.text-primary::before { opacity: 1; transform: scaleY(1); }
   main > div > section { animation: pv-page-in 260ms ease both; }
 }
 
-/* Floating mobile navigation: Home / Discover / Library capsule + Settings orb. */
-.pv-floating-nav {
-  animation: pv-nav-enter 480ms cubic-bezier(.22,1,.36,1) both;
-}
+/* Opaque music-app style floating navigation. */
+.pv-floating-nav { animation: pv-nav-enter 420ms cubic-bezier(.22,1,.36,1) both; }
 .pv-floating-nav-pill,
-.pv-floating-settings {
-  box-shadow: 0 16px 50px rgba(0,0,0,.46), 0 0 0 1px rgba(255,255,255,.018) inset;
-}
-.pv-floating-nav-item {
-  position: relative;
-  isolation: isolate;
-  transition: color 180ms ease, transform 180ms ease;
-}
-.pv-floating-nav-item::before {
-  content: '';
-  position: absolute;
-  inset: 3px;
-  z-index: -1;
-  border-radius: 1.1rem;
-  background: hsl(var(--primary) / .11);
-  opacity: 0;
-  transform: scale(.84);
-  transition: opacity 220ms ease, transform 240ms cubic-bezier(.22,1,.36,1);
-}
+.pv-floating-settings { background: #111113 !important; border-color: rgba(255,255,255,.09) !important; box-shadow: 0 18px 55px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.015) inset; }
+.pv-floating-nav-item { position: relative; isolation: isolate; transition: color 180ms ease, transform 180ms ease; }
+.pv-floating-nav-item::before { content: ''; position: absolute; inset: 3px; z-index: -1; border-radius: 1rem; background: hsl(var(--primary) / .13); opacity: 0; transform: scale(.86); transition: opacity 220ms ease, transform 240ms cubic-bezier(.22,1,.36,1); }
 .pv-floating-nav-item.is-active::before { opacity: 1; transform: scale(1); }
-.pv-floating-nav-item.is-active .pv-floating-nav-icon { animation: pv-nav-icon-pop 260ms cubic-bezier(.22,1,.36,1); }
+.pv-floating-nav-item.is-active .pv-floating-nav-icon { animation: pv-nav-icon-pop 240ms cubic-bezier(.22,1,.36,1); }
 .pv-floating-nav-item:hover { transform: translateY(-1px); }
 .pv-floating-nav-item:active { transform: scale(.95); }
-.pv-floating-settings {
-  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
-}
-.pv-floating-settings.is-active {
-  color: hsl(var(--primary));
-  background: hsl(var(--primary) / .12);
-  border-color: hsl(var(--primary) / .24);
-}
-.pv-floating-settings:active { transform: scale(.94) rotate(-8deg); }
+.pv-floating-settings { transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, transform 180ms ease; }
+.pv-floating-settings.is-active { color: hsl(var(--primary)); background: hsl(var(--primary) / .12) !important; border-color: hsl(var(--primary) / .24) !important; }
+.pv-floating-settings:active { transform: scale(.94); }
 
-/* Adaptive artwork palette: only the player atmosphere changes; the app remains dark. */
-.pv-player-shell,
-.pv-player-overlay { --pv-art-rgb: 78, 78, 96; }
-.pv-player-shell {
-  border-color: rgb(var(--pv-art-rgb) / .22);
-  box-shadow: 0 20px 60px rgba(0,0,0,.5), 0 0 44px rgb(var(--pv-art-rgb) / .08);
-}
-.pv-player-shell .bg-primary,
-.pv-player-overlay .bg-primary { background-color: rgb(var(--pv-art-rgb)) !important; }
-.pv-player-shell .text-primary,
-.pv-player-overlay .text-primary { color: rgb(var(--pv-art-rgb)) !important; }
+/* Premium player surfaces stay neutral-dark; artwork never recolors the UI. */
+.pv-player-shell { background: #0e0e10 !important; border-color: rgba(255,255,255,.09) !important; box-shadow: 0 18px 60px rgba(0,0,0,.58); animation: pv-player-enter 320ms cubic-bezier(.22,1,.36,1) both; }
+.pv-player-overlay { background: #070708 !important; animation: pv-player-overlay-in 220ms ease both; }
+.pv-player-hero { animation: pv-player-hero-up 380ms cubic-bezier(.22,1,.36,1) both; }
+.pv-hero-art { border-radius: 1.75rem; box-shadow: 0 32px 90px rgba(0,0,0,.38); }
 .pv-player-art-playing { display: block; animation: pv-player-art-breathe 2.8s ease-in-out infinite; }
-.pv-hero-art { border-radius: 1.75rem; transition: box-shadow 500ms ease, transform 500ms ease; }
-.pv-player-overlay .pv-hero-art:has(img) { animation: pv-player-hero-float 5s ease-in-out infinite; }
 
+.pv-bottom-sheet-panel { animation: pv-sheet-up 300ms cubic-bezier(.22,1,.36,1) both; }
+.pv-bottom-sheet-backdrop { animation: pv-sheet-backdrop 220ms ease both; }
 .pv-loading-spark { animation: pv-loading-spin 1.4s linear infinite; }
 .pv-loading-dot { animation: pv-loading-pulse 1.25s ease-in-out infinite; }
 .pv-loading-dot-delay-1 { animation-delay: .18s; }
 .pv-loading-dot-delay-2 { animation-delay: .36s; }
 .pv-loading-bar { animation: pv-loading-sweep 1.5s ease-in-out infinite; }
-.pv-bottom-sheet-panel { animation: pv-sheet-up 300ms cubic-bezier(.22,1,.36,1) both; }
-.pv-bottom-sheet-backdrop { animation: pv-sheet-backdrop 220ms ease both; }
-.pv-player-shell { animation: pv-player-enter 360ms cubic-bezier(.22,1,.36,1) both; }
-.pv-player-overlay { animation: pv-player-overlay-in 220ms ease both; }
-.pv-player-hero { animation: pv-player-hero-up 420ms cubic-bezier(.22,1,.36,1) both; }
 
 @keyframes pv-page-in { from { opacity: .7; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 @keyframes pv-view-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-4px); } }
 @keyframes pv-view-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes pv-nav-enter { from { opacity: 0; transform: translate(-50%, 18px) scale(.97); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
-@keyframes pv-nav-icon-pop { 0% { transform: scale(.86); } 65% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes pv-nav-enter { from { opacity: 0; transform: translate(-50%, 14px) scale(.985); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes pv-nav-icon-pop { 0% { transform: scale(.9); } 65% { transform: scale(1.07); } 100% { transform: scale(1); } }
 @keyframes pv-loading-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes pv-loading-pulse { 0%, 100% { opacity: .3; transform: scale(.85); } 50% { opacity: 1; transform: scale(1); } }
 @keyframes pv-loading-sweep { 0% { transform: translateX(-140%); } 60%, 100% { transform: translateX(360%); } }
 @keyframes pv-sheet-up { from { opacity: .75; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pv-sheet-backdrop { from { opacity: 0; } to { opacity: 1; } }
-@keyframes pv-player-enter { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes pv-player-art-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+@keyframes pv-player-enter { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes pv-player-art-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
 @keyframes pv-player-overlay-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes pv-player-hero-up { from { opacity: .7; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes pv-player-hero-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes pv-player-hero-up { from { opacity: .7; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 @media (max-width: 767px) {
   main > div > section { animation: none; }
+  .pv-floating-nav { width: min(94vw, 430px); }
   .pv-floating-nav-item { min-height: 48px; }
   .pv-floating-settings { min-height: 48px; min-width: 48px; }
   .pv-player-overlay { overflow-y: auto; }
@@ -132,11 +100,6 @@ input { user-select: text; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  *, *::before, *::after {
-    animation-duration: .01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: .01ms !important;
-    scroll-behavior: auto !important;
-  }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
   main > div > section { animation: none !important; }
 }
