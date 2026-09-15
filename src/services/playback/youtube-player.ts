@@ -132,54 +132,72 @@ function mapState(state: number | undefined): YouTubePlayerState {
 
 /**
  * Thin adapter around the official YouTube IFrame Player API.
- * It deliberately exposes videoId playback, not extracted media URLs.
+ * The adapter owns an imperatively-created child host so React never reconciles
+ * nodes that the YouTube API mutates.
  */
 export class YouTubePlayerAdapter {
   private player: YouTubeApiPlayer | null = null;
+  private playerHost: HTMLDivElement | null = null;
   private listeners = new Set<YouTubePlayerListener>();
   private state: YouTubePlayerState = 'unstarted';
   private error: string | null = null;
   private ready = false;
+  private mounting = false;
   private pendingLoad: { videoId: string; autoplay: boolean } | null = null;
   private timeUpdateTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly container: HTMLElement) {}
 
   async mount(): Promise<void> {
-    await loadYouTubeIframeApi();
-    if (!window.YT?.Player) throw new Error('YouTube IFrame Player API is unavailable.');
+    if (this.player || this.mounting) return;
+    this.mounting = true;
 
-    this.player = new window.YT.Player(this.container, {
-      playerVars: {
-        playsinline: 1,
-        enablejsapi: 1,
-        origin: window.location.origin,
-        rel: 0,
-      },
-      events: {
-        onReady: () => {
-          this.ready = true;
-          const pending = this.pendingLoad;
-          this.pendingLoad = null;
-          if (pending) this.applyLoad(pending.videoId, pending.autoplay);
-          this.startTimeUpdates();
-          this.emit();
+    try {
+      await loadYouTubeIframeApi();
+      if (!window.YT?.Player) throw new Error('YouTube IFrame Player API is unavailable.');
+      if (this.player) return;
+
+      const host = document.createElement('div');
+      host.dataset.pulsyvibeYoutubeHost = 'true';
+      host.style.width = '100%';
+      host.style.height = '100%';
+      this.container.appendChild(host);
+      this.playerHost = host;
+
+      this.player = new window.YT.Player(host, {
+        playerVars: {
+          playsinline: 1,
+          enablejsapi: 1,
+          origin: window.location.origin,
+          rel: 0,
         },
-        onStateChange: event => {
-          this.state = mapState(event.data);
-          this.emit();
+        events: {
+          onReady: () => {
+            this.ready = true;
+            const pending = this.pendingLoad;
+            this.pendingLoad = null;
+            if (pending) this.applyLoad(pending.videoId, pending.autoplay);
+            this.startTimeUpdates();
+            this.emit();
+          },
+          onStateChange: event => {
+            this.state = mapState(event.data);
+            this.emit();
+          },
+          onError: event => {
+            this.error = `YouTube playback error (${event.data ?? 'unknown'}).`;
+            this.state = 'unstarted';
+            this.emit();
+          },
+          onAutoplayBlocked: () => {
+            this.error = 'Autoplay was blocked. Start playback with a user action.';
+            this.emit();
+          },
         },
-        onError: event => {
-          this.error = `YouTube playback error (${event.data ?? 'unknown'}).`;
-          this.state = 'unstarted';
-          this.emit();
-        },
-        onAutoplayBlocked: () => {
-          this.error = 'Autoplay was blocked. Start playback with a user action.';
-          this.emit();
-        },
-      },
-    });
+      });
+    } finally {
+      this.mounting = false;
+    }
   }
 
   load(videoId: string, autoplay = false): void {
@@ -234,8 +252,16 @@ export class YouTubePlayerAdapter {
     this.stopTimeUpdates();
     this.pendingLoad = null;
     this.ready = false;
+    this.mounting = false;
+
     this.player?.destroy();
     this.player = null;
+
+    if (this.playerHost?.parentNode === this.container) {
+      this.container.removeChild(this.playerHost);
+    }
+    this.playerHost = null;
+
     this.listeners.clear();
   }
 
