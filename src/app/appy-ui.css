@@ -1,0 +1,123 @@
+/* Appy visual system transplanted into PulsyVibe V2. Fixed dark palette; no adaptive artwork recoloring. */
+
+:root {
+  --appy-bg: #171719;
+  --appy-panel: rgba(26, 26, 26, 0.85);
+  --appy-primary: #32e6b0;
+  --appy-accent: #b692ff;
+  --appy-white: #f7f7f7;
+  --appy-muted: rgba(255,255,255,.46);
+}
+
+.appy-command-shell {
+  border-radius: 2.5rem;
+  padding: clamp(16px, 4vw, 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background: var(--appy-panel);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 25px 90px -36px rgba(0,0,0,.92), inset 0 1px 0 rgba(255,255,255,.035);
+}
+
+.appy-command-shell-compact { max-width: 760px; margin: 0 auto 28px; border-radius: 1.6rem; padding: 10px; }
+.appy-command-row { position: relative; display:flex; align-items:center; gap:10px; }
+.appy-command-icon { color: rgba(255,255,255,.55); margin-left: 10px; }
+.appy-command-input { flex:1; min-width:0; height:54px; background:transparent; border:0; outline:0; color:white; font-weight:800; }
+.appy-command-input::placeholder { color: rgba(255,255,255,.23); }
+
+.appy-logo {
+  font-size: clamp(3.5rem, 13vw, 7rem);
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -.075em;
+}
+.appy-tagline {
+  color: rgba(255,255,255,.46);
+  font-size: clamp(10px,2vw,12px);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .4em;
+}
+.appy-brand-block { margin-top: 10px; }
+
+.appy-mode-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background: rgba(0,0,0,.40);
+  border:1px solid rgba(255,255,255,.09);
+  padding:8px;
+  border-radius:999px;
+}
+.appy-mode-icon { width:43px; height:43px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:var(--appy-primary); color:#081813; transition:.25s ease; }
+.appy-mode-icon.is-search { background:var(--appy-accent); color:#130b22; }
+.appy-mode-title { color:white; font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.16em; line-height:1; }
+.appy-mode-subtitle { color:var(--appy-muted); font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:.16em; margin-top:5px; }
+.appy-switch { width:44px; height:24px; border-radius:999px; padding:3px; background:var(--appy-primary); display:flex; align-items:center; transition:.25s ease; }
+.appy-switch span { width:18px; height:18px; display:block; border-radius:50%; background:#09110e; transform:translateX(0); transition:.25s ease; }
+.appy-switch.is-on { background:var(--appy-accent); }
+.appy-switch.is-on span { transform:translateX(20px); background:#130b22; }
+
+.appy-main-input { position:relative; height:clamp(60px,12vw,80px); }
+.appy-main-input-icon { position:absolute; left:24px; top:50%; transform:translateY(-50%); color:white; opacity:.58; z-index:1; }
+.appy-main-text-input {
+  width:100%; height:100%; padding:0 78px 0 64px; border-radius:24px; border:2px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.20); color:white; font-size:clamp(14px,3vw,16px); font-weight:900; outline:0;
+  box-shadow: inset 0 3px 20px rgba(0,0,0,.18); transition:.25s ease;
+}
+.appy-main-text-input::placeholder { color:rgba(255,255,255,.19); }
+.appy-main-text-input:focus { border-color:rgba(50,230,176,.48); background:rgba(0,0,0,.30); }
+.appy-dice-button { position:absolute; right:8px; top:50%; transform:translateY(-50%); width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; color:var(--appy-primary); background:rgba(0,0,0,.38); border:1px solid rgba(255,255,255,.18); }
+.appy-dice-button:not(:disabled):hover { transform:translateY(-50%) scale(1.05) rotate(4deg); }
+
+.appy-vibe-pills { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+.appy-vibe-pill { display:inline-flex; align-items:center; gap:8px; padding:9px 15px; border-radius:999px; border:2px solid rgba(255,255,255,.09); background:rgba(0,0,0,.28); color:rgba(255,255,255,.78); font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.09em; transition:.2s ease; }
+.appy-vibe-pill:hover { transform:scale(1.045); border-color:rgba(255,255,255,.22); }
+.appy-vibe-pill.is-selected { background:var(--appy-primary); color:#07110d; border-color:var(--appy-primary); box-shadow:0 12px 30px -15px rgba(50,230,176,.7); }
+
+.appy-control-stack { display:flex; flex-direction:column; gap:12px; }
+.appy-inline-control { min-height:64px; display:flex; align-items:center; gap:16px; padding:0 22px; border-radius:19px; background:rgba(0,0,0,.40); border:1px solid rgba(255,255,255,.09); }
+.appy-control-label { display:block; color:var(--appy-muted); font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:.16em; }
+.appy-control-value { display:block; color:var(--appy-primary); font-size:16px; font-weight:900; line-height:1.15; margin-top:3px; }
+.appy-range { flex:1; accent-color:var(--appy-primary); }
+.appy-region-input { display:flex; align-items:center; gap:8px; padding:4px 0 3px; border-bottom:2px solid rgba(255,255,255,.10); color:var(--appy-primary); }
+.appy-region-input input { min-width:0; flex:1; background:transparent; border:0; outline:0; color:white; font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.16em; }
+.appy-region-input input::placeholder { color:rgba(255,255,255,.14); }
+
+.appy-primary-button { min-height:64px; border:0; border-radius:24px; display:flex; align-items:center; justify-content:center; gap:12px; background:var(--appy-primary); color:#07110d; font-size:clamp(16px,4vw,18px); font-weight:900; text-transform:uppercase; letter-spacing:.2em; box-shadow:0 18px 38px -17px rgba(50,230,176,.7); transition:transform .18s ease, box-shadow .18s ease, opacity .18s ease; }
+.appy-primary-button:not(:disabled):hover { transform:translateY(-2px); box-shadow:0 24px 46px -18px rgba(50,230,176,.75); }
+.appy-primary-button:not(:disabled):active { transform:scale(.98); }
+.appy-primary-button:disabled { opacity:.42; cursor:not-allowed; }
+.appy-compact-submit { min-width:48px; min-height:48px; padding:0 14px; border-radius:15px; }
+
+.appy-loading-card, .appy-state-card { max-width:760px; margin:24px auto; border-radius:2rem; border:1px solid rgba(255,255,255,.09); background:rgba(26,26,26,.82); backdrop-filter:blur(30px); padding:28px; box-shadow:0 24px 80px -35px rgba(0,0,0,.85); }
+.appy-loading-icon, .appy-state-icon { width:48px; height:48px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:rgba(50,230,176,.10); color:var(--appy-primary); }
+.appy-loading-spark { animation:appy-pulse 1.4s ease-in-out infinite; }
+.appy-state-card { text-align:center; padding:48px 24px; }
+.appy-state-icon { margin:0 auto 16px; }
+.appy-state-action { width:auto; min-height:46px; padding:0 20px; border-radius:999px; font-size:11px; letter-spacing:.12em; }
+
+/* Make the existing V2 shell feel like the Appy canvas without changing navigation architecture. */
+.pv-screen { min-height: calc(100vh - 80px); }
+.pv-screen-home { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; }
+.pv-screen-home > div.mx-auto.max-w-5xl { width:100%; max-width:820px; }
+.pv-screen-home > div.mx-auto.max-w-5xl > section:first-child { display:none; }
+.pv-screen-home > div.mx-auto.max-w-5xl > .my-8 { display:none; }
+.pv-screen-home > div.mx-auto.max-w-5xl > section:last-child { margin-top:34px; }
+
+body { background-color:#171719; background-image:radial-gradient(circle at 50% -20%, rgba(50,230,176,.12), transparent 42%); }
+
+@keyframes appy-pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.08);opacity:.65} }
+
+@media (max-width: 767px) {
+  .appy-command-shell { border-radius:2rem; gap:19px; }
+  .appy-logo { font-size:clamp(3.6rem, 18vw, 5.25rem); }
+  .appy-tagline { letter-spacing:.31em; }
+  .appy-inline-control { padding:0 18px; }
+  .appy-vibe-pill { max-width:100%; }
+  .pv-screen-home { padding-top:0; }
+  .pv-screen-home > div.mx-auto.max-w-5xl > section:last-child { margin-top:28px; }
+}
