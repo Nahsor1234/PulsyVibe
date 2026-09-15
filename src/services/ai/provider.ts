@@ -33,5 +33,10 @@ export class ProviderRecommendationEngine implements RecommendationEngine {
   }
 }
 
-export { GeminiAiProvider } from './gemini-provider';
+export {
+  GeminiAiProvider,
+  getGeminiAiProvider,
+  GenkitGeminiClient,
+  getGenkitGeminiClient,
+} from './gemini-provider';
 

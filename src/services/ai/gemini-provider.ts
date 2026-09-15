@@ -69,6 +69,7 @@ export interface GeminiAiClient {
     schema: unknown;
     temperature?: number;
     timeoutMs?: number;
+    abortSignal?: AbortSignal;
   }): Promise<T>;
 }
 
@@ -79,6 +80,20 @@ export interface GenkitGeminiClientOptions {
   apiKey?: string;
   model?: string;
   defaultTimeoutMs?: number;
+}
+
+// Module-level cache to avoid creating multiple redundant Genkit instances for the same key
+const genkitInstanceMap = new Map<string, ReturnType<typeof genkit>>();
+
+function getOrCreateGenkitInstance(apiKey: string): ReturnType<typeof genkit> {
+  let instance = genkitInstanceMap.get(apiKey);
+  if (!instance) {
+    instance = genkit({
+      plugins: [googleAI({ apiKey })],
+    });
+    genkitInstanceMap.set(apiKey, instance);
+  }
+  return instance;
 }
 
 export class GenkitGeminiClient implements GeminiAiClient {
@@ -101,9 +116,8 @@ export class GenkitGeminiClient implements GeminiAiClient {
     this.model = options.model || DEFAULT_GEMINI_MODEL;
     this.defaultTimeoutMs = options.defaultTimeoutMs || DEFAULT_AI_TIMEOUT_MS;
 
-    this.aiInstance = genkit({
-      plugins: [googleAI({ apiKey: effectiveKey })],
-    });
+    // Reuse singleton Genkit runtime instance per API key
+    this.aiInstance = getOrCreateGenkitInstance(effectiveKey);
   }
 
   async generateStructured<T>(params: {
@@ -112,49 +126,83 @@ export class GenkitGeminiClient implements GeminiAiClient {
     schema: unknown;
     temperature?: number;
     timeoutMs?: number;
+    abortSignal?: AbortSignal;
   }): Promise<T> {
     const timeoutMs = params.timeoutMs ?? this.defaultTimeoutMs;
 
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      const timer = setTimeout(() => {
-        reject(new Error(`Gemini request timed out after ${timeoutMs}ms.`));
-      }, timeoutMs);
-      if (typeof timer.unref === 'function') {
-        timer.unref();
+    // Active AbortController tied to timeout and optional caller abortSignal.
+    // Genkit passes `abortSignal` through @genkit-ai/google-genai clientOptions
+    // to the underlying fetch call (`signal: abortSignal`), achieving real cancellation.
+    const controller = new AbortController();
+    let isTimedOut = false;
+
+    if (params.abortSignal) {
+      if (params.abortSignal.aborted) {
+        controller.abort();
+      } else {
+        params.abortSignal.addEventListener('abort', () => controller.abort(), { once: true });
       }
-    });
+    }
 
-    const executionPromise = (async () => {
-      try {
-        const response = await this.aiInstance.generate({
-          model: this.model,
-          system: params.systemPrompt,
-          prompt: params.prompt,
-          output: { schema: params.schema as any },
-          config: {
-            temperature: params.temperature ?? 0.3,
-            safetySettings: [
-              { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-              { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-              { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-              { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-            ],
-          },
-        });
+    const timer = setTimeout(() => {
+      isTimedOut = true;
+      controller.abort();
+    }, timeoutMs);
 
-        if (!response.output) {
-          throw new Error('Gemini returned an empty structured output response.');
-        }
+    if (typeof timer.unref === 'function') {
+      timer.unref();
+    }
 
-        return response.output as T;
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        throw new Error(`Gemini generation failed: ${message}`);
+    try {
+      const response = await this.aiInstance.generate({
+        model: this.model,
+        system: params.systemPrompt,
+        prompt: params.prompt,
+        output: { schema: params.schema as any },
+        abortSignal: controller.signal,
+        config: {
+          temperature: params.temperature ?? 0.3,
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+          ],
+        },
+      });
+
+      if (!response.output) {
+        throw new Error('Gemini returned an empty structured output response.');
       }
-    })();
 
-    return Promise.race([executionPromise, timeoutPromise]);
+      return response.output as T;
+    } catch (err: unknown) {
+      if (isTimedOut) {
+        throw new Error(`Gemini request timed out after ${timeoutMs}ms.`);
+      }
+      if (params.abortSignal?.aborted) {
+        throw new Error('Gemini request was cancelled by caller.');
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Gemini generation failed: ${message}`);
+    } finally {
+      clearTimeout(timer);
+    }
   }
+}
+
+// Singleton instances for zero-configuration usage
+let defaultClientInstance: GenkitGeminiClient | null = null;
+
+export function getGenkitGeminiClient(options?: GenkitGeminiClientOptions): GenkitGeminiClient {
+  const hasCustom = Boolean(options?.apiKey || options?.model || options?.defaultTimeoutMs);
+  if (hasCustom) {
+    return new GenkitGeminiClient(options);
+  }
+  if (!defaultClientInstance) {
+    defaultClientInstance = new GenkitGeminiClient();
+  }
+  return defaultClientInstance;
 }
 
 // --- Prompt Generators ---
@@ -230,7 +278,7 @@ export class GeminiAiProvider implements AiProvider {
   private readonly client: GeminiAiClient;
 
   constructor(options: GeminiAiProviderOptions = {}) {
-    this.client = options.client ?? new GenkitGeminiClient(options);
+    this.client = options.client ?? getGenkitGeminiClient(options);
   }
 
   async parse(query: string): Promise<MusicIntent> {
@@ -296,6 +344,23 @@ export class GeminiAiProvider implements AiProvider {
       candidates: candidatesList,
     };
 
+    // Sanitize output through defensive boundary: deduplicates, caps, strips invalid records,
+    // and NEVER fabricates missing songs if Gemini returns fewer candidates.
     return sanitizeRecommendations(rawResult, targetCount);
   }
+}
+
+let defaultProviderInstance: GeminiAiProvider | null = null;
+
+export function getGeminiAiProvider(options?: GeminiAiProviderOptions): GeminiAiProvider {
+  const hasCustom = Boolean(
+    options?.client || options?.apiKey || options?.model || options?.defaultTimeoutMs,
+  );
+  if (hasCustom) {
+    return new GeminiAiProvider(options);
+  }
+  if (!defaultProviderInstance) {
+    defaultProviderInstance = new GeminiAiProvider();
+  }
+  return defaultProviderInstance;
 }
