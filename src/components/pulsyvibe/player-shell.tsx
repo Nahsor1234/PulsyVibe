@@ -1,6 +1,6 @@
 'use client';
 
-import type { RefObject } from 'react';
+import type { CSSProperties, RefObject } from 'react';
 import { useMemo, useState } from 'react';
 import { ChevronDown, Download, Heart, ListMusic, MoreVertical, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from 'lucide-react';
 import type { Track } from '@/types/track';
@@ -43,6 +43,7 @@ export function PlayerShell({ current, progress, player, playerOpen, setPlayerOp
     const { items, currentIndex } = player.state.queue;
     return items.slice(Math.max(0, currentIndex + 1), currentIndex + 11);
   }, [player.state.queue.items, player.state.queue.currentIndex]);
+  const sliderStyle = { '--pv-slider-progress': `${duration > 0 ? (currentTime / duration) * 100 : 0}%` } as CSSProperties;
 
   return (
     <>
@@ -105,6 +106,7 @@ export function PlayerShell({ current, progress, player, playerOpen, setPlayerOp
                       value={Math.min(currentTime, duration || 0)}
                       onChange={event => player.seek(Number(event.target.value))}
                       className="pv-player-slider w-full"
+                      style={sliderStyle}
                     />
                     <div className="mt-2 flex justify-between text-xs font-medium text-white/45"><span>{formatTime(currentTime)}</span><span>{formatTime(duration)}</span></div>
                   </div>
@@ -127,7 +129,7 @@ export function PlayerShell({ current, progress, player, playerOpen, setPlayerOp
             </div>
 
             <BottomSheet open={queueOpen} title="Up Next" onClose={() => setQueueOpen(false)}>
-              <div className="mb-3 flex items-center justify-between text-xs text-white/45"><span>{upNext.length} queued</span><span>Now Playing: {current.title}</span></div>
+              <div className="mb-3 flex items-center justify-between text-xs text-white/45"><span>{upNext.length} queued</span><span className="max-w-[48%] truncate">Now Playing: {current.title}</span></div>
               {upNext.length ? <div className="max-h-[58dvh] space-y-1 overflow-y-auto">{upNext.map((track, index) => { const queueIndex = player.state.queue.currentIndex + 1 + index; return <button key={`${track.id}-${queueIndex}`} onClick={() => { player.playAt(queueIndex); setQueueOpen(false); }} className="flex w-full items-center gap-3 rounded-2xl px-2 py-3 text-left active:bg-white/[0.06]"><span className="w-5 text-center text-[10px] text-white/25">{index + 1}</span><TrackArt track={track} size="sm" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{track.title}</span><span className="block truncate text-xs text-white/40">{track.artist} · {track.duration ? formatTime(track.duration) : ''}</span></span><MoreVertical size={16} className="text-white/25" /></button>; })}</div> : <div className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center"><p className="text-sm font-medium text-white/55">Queue is empty</p><p className="mt-1 text-xs text-white/30">Add songs from Discovery to continue playing.</p></div>}
             </BottomSheet>
           </div>
