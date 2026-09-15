@@ -1,7 +1,7 @@
 'use client';
 
 import type { CSSProperties, ReactNode } from 'react';
-import { Home, History, Search, Settings } from 'lucide-react';
+import { Home, History, Search, Settings, Sparkles, SlidersHorizontal } from 'lucide-react';
 import { CommandPalette } from './command-palette';
 
 type View = 'home' | 'search' | 'history' | 'settings';
@@ -32,6 +32,7 @@ export function AppShell({ view, onNavigate, onSearch, transitionDirection = 'fo
   children: ReactNode;
 }) {
   const activeIndex = Math.max(0, NAV.findIndex(([id]) => id === view));
+  const subtitle = view === 'home' ? 'Discovery Hub' : view === 'history' ? 'History' : view === 'settings' ? 'Settings' : 'Discovery';
 
   return (
     <>
@@ -57,11 +58,14 @@ export function AppShell({ view, onNavigate, onSearch, transitionDirection = 'fo
 
         <section className="min-w-0 flex-1 px-4 py-5 pb-28 sm:px-6 md:px-10 md:py-8 md:pb-8">
           <header className="mb-7 flex items-center justify-between gap-3 md:hidden">
-            <button onClick={() => onNavigate('home')} className="flex items-center gap-2.5">
+            <button onClick={() => onNavigate('home')} className="flex items-center gap-2.5 text-left">
               <PulsyVibeMark className="h-9 w-9" />
-              <strong>PulsyVibe</strong>
+              <span className="flex flex-col"><strong className="text-[18px] leading-5 tracking-tight">PulsyVibe</strong><span className="text-[9px] uppercase tracking-[0.18em] text-[#70747d]">{subtitle}</span></span>
             </button>
-            <button onClick={() => onNavigate('settings')} aria-label="Open settings" className={`rounded-full border border-white/[0.09] bg-[#111113] p-2.5 ${view === 'settings' ? 'text-primary' : 'text-white/65'}`}><Settings size={18} /></button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => onNavigate('settings')} aria-label="Audio settings" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#292a2c] text-[#c8c4d6] hover:text-primary"><SlidersHorizontal size={18} /></button>
+              <button onClick={() => onNavigate('settings')} aria-label="Open settings" className={`flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.08] bg-[#1f2022] ${view === 'settings' ? 'text-primary' : 'text-white/65'}`}><Settings size={17} /></button>
+            </div>
           </header>
 
           <p className="mb-7 hidden text-xs uppercase tracking-[0.22em] text-muted-foreground md:block">{view === 'home' ? 'Your music space' : view === 'search' ? 'AI discovery' : view === 'history' ? 'Discovery history' : 'Preferences'}</p>
@@ -77,12 +81,7 @@ export function AppShell({ view, onNavigate, onSearch, transitionDirection = 'fo
           <span className="pv-floating-nav-indicator" aria-hidden="true" />
           {NAV.map(([id, Icon, label]) => {
             const active = view === id;
-            return (
-              <button key={id} onClick={() => onNavigate(id)} aria-current={active ? 'page' : undefined} className={`pv-floating-nav-item relative z-10 flex h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-medium transition-colors ${active ? 'is-active text-primary' : 'text-white/48'}`}>
-                <Icon size={19} strokeWidth={2} />
-                <span>{label}</span>
-              </button>
-            );
+            return <button key={id} onClick={() => onNavigate(id)} aria-current={active ? 'page' : undefined} className={`pv-floating-nav-item relative z-10 flex h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-medium transition-colors ${active ? 'is-active text-primary' : 'text-white/48'}`}><Icon size={19} strokeWidth={2} /><span>{label}</span></button>;
           })}
         </div>
       </nav>
