@@ -10,6 +10,7 @@ type TransitionDirection = 'forward' | 'back';
 const NAV = [
   ['home', Home, 'Home'],
   ['history', History, 'History'],
+  ['settings', Settings, 'Settings'],
 ] as const;
 
 function PulsyVibeMark({ className = 'h-8 w-8' }: { className?: string }) {
@@ -41,15 +42,12 @@ export function AppShell({ view, onNavigate, onSearch, transitionDirection = 'fo
             <span><strong className="block text-lg tracking-tight">PulsyVibe</strong><small className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">AI music discovery</small></span>
           </button>
           <nav className="space-y-1">
-            {([
-              ['home', Home, 'Home'],
-              ['history', History, 'History'],
-              ['settings', Settings, 'Settings'],
-            ] as const).map(([id, Icon, label]) => (
+            {NAV.map(([id, Icon, label]) => (
               <button key={id} onClick={() => onNavigate(id)} className={`flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-medium ${view === id ? 'bg-white/[0.07] text-foreground' : 'text-muted-foreground hover:bg-white/[0.035] hover:text-foreground'}`}>
                 <Icon size={18} />{label}
               </button>
             ))}
+            {view === 'search' && <button onClick={() => onNavigate('search')} className="flex w-full items-center gap-3 rounded-2xl bg-white/[0.07] px-3.5 py-3 text-sm font-medium text-foreground"><Search size={18} />Discover</button>}
           </nav>
           <div className="mt-auto rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 text-xs text-muted-foreground">
             <p className="mb-1 font-semibold text-foreground">Tap a song to play ▶️</p>
@@ -74,20 +72,19 @@ export function AppShell({ view, onNavigate, onSearch, transitionDirection = 'fo
         </section>
       </div>
 
-      <nav className="pv-floating-nav fixed bottom-[max(.65rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex -translate-x-1/2 items-center gap-2" aria-label="Primary navigation">
-        <div className="pv-floating-nav-pill relative flex h-[50px] w-[260px] items-center justify-between rounded-full border border-white/[0.08] bg-[#111113] px-2 shadow-[0_4px_24px_rgba(0,0,0,0.42)]" style={{ '--pv-nav-index': activeIndex } as CSSProperties}>
+      <nav className="pv-floating-nav fixed bottom-[max(.75rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[260px] -translate-x-1/2" aria-label="Primary navigation">
+        <div className="pv-floating-nav-pill relative flex h-[50px] w-full items-center rounded-full border border-white/[0.08] bg-[#111113] px-2 shadow-[0_4px_24px_rgba(0,0,0,0.42)]" style={{ '--pv-nav-index': activeIndex } as CSSProperties}>
           <span className="pv-floating-nav-indicator" aria-hidden="true" />
           {NAV.map(([id, Icon, label]) => {
             const active = view === id;
             return (
-              <button key={id} onClick={() => onNavigate(id)} aria-current={active ? 'page' : undefined} className={`pv-floating-nav-item relative z-10 flex h-11 min-w-[72px] flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-medium transition-colors ${active ? 'is-active text-primary' : 'text-white/48'}`}>
+              <button key={id} onClick={() => onNavigate(id)} aria-current={active ? 'page' : undefined} className={`pv-floating-nav-item relative z-10 flex h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-medium transition-colors ${active ? 'is-active text-primary' : 'text-white/48'}`}>
                 <Icon size={19} strokeWidth={2} />
                 <span>{label}</span>
               </button>
             );
           })}
         </div>
-        <button onClick={() => onNavigate('settings')} aria-label="Open settings" aria-current={view === 'settings' ? 'page' : undefined} className={`pv-floating-settings flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-full border border-white/[0.08] bg-[#111113] shadow-[0_4px_24px_rgba(0,0,0,0.42)] ${view === 'settings' ? 'text-primary' : 'text-white/52'}`}><Settings size={19} /></button>
       </nav>
 
       <CommandPalette onNavigate={onNavigate} onSearch={onSearch} />
