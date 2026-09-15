@@ -2,7 +2,7 @@
 
 import type { FormEvent } from 'react';
 import { useMemo, useOptimistic, useState, useTransition } from 'react';
-import { Clock3, Heart, ListMusic, Pause, Repeat, Settings, Shuffle, SkipBack, SkipForward, Sparkles, Volume2 } from 'lucide-react';
+import { Clock3, Heart, Pause, Repeat, Shuffle, SkipForward, Sparkles, Volume2 } from 'lucide-react';
 import type { MusicIntent } from '@/types/ai';
 import type { Track } from '@/types/track';
 import { useYouTubePlayer } from '@/hooks/use-youtube-player';
@@ -43,6 +43,7 @@ export default function HomePage() {
   const [tracks, setTracks] = usePersistentState<Track[]>('pulsyvibe:tracks', []);
   const [recentQueries, setRecentQueries] = usePersistentState<string[]>('pulsyvibe:recent-queries', []);
   const [favorites, setFavorites] = usePersistentState<Track[]>('pulsyvibe:favorites', []);
+  const [adaptivePalette, setAdaptivePalette] = usePersistentState<boolean>('pulsyvibe:adaptive-palette', true);
   const [optimisticFavorites, setOptimisticFavorite] = useOptimistic(favorites, (current: Track[], track: Track) => current.some(item => item.id === track.id) ? current.filter(item => item.id !== track.id) : [...current, track]);
   const [isSearching, setIsSearching] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -138,10 +139,10 @@ export default function HomePage() {
 
         {view === 'library' && <div className="mx-auto max-w-5xl"><h1 className="mb-2 text-3xl font-black">Library</h1><p className="mb-8 text-sm text-muted-foreground">Favorites and the active playback queue.</p><SectionTitle icon={<Heart size={17} />} title="Favorites" />{optimisticFavorites.length ? <div className="space-y-1">{optimisticFavorites.map(track => <TrackRow key={track.id} track={track} active={current?.id === track.id} onPlay={() => playTrack(track)} onQueue={() => player.enqueue([track])} onFavorite={() => toggleFavorite(track)} favorite onSeed={() => { setQuery(track.title); void discover(track.title); }} />)}</div> : <StateCard title="No favorites yet" message="Tap the heart on a discovered track to keep it here." />}</div>}
 
-        {view === 'settings' && <div className="mx-auto max-w-3xl"><h1 className="mb-2 text-3xl font-black">Settings</h1><p className="mb-8 text-sm text-muted-foreground">V2 playback controls and implementation boundaries.</p><SettingRow icon={<Shuffle size={18} />} title="Shuffle" description="Randomize the next queue item." value={player.state.queue.shuffle ? 'On' : 'Off'} onClick={() => player.setShuffle(!player.state.queue.shuffle)} /><SettingRow icon={<Repeat size={18} />} title="Repeat" description="Repeat the current track or the whole queue." value={player.state.queue.repeat} onClick={() => player.setRepeat(player.state.queue.repeat === 'off' ? 'all' : player.state.queue.repeat === 'all' ? 'one' : 'off')} /><SettingRow icon={<Volume2 size={18} />} title="Playback source" description="Official YouTube IFrame Player API; no extracted media URLs." value="YouTube" /></div>}
+        {view === 'settings' && <div className="mx-auto max-w-3xl"><h1 className="mb-2 text-3xl font-black">Settings</h1><p className="mb-8 text-sm text-muted-foreground">V2 playback controls and visual preferences.</p><SettingRow icon={<Shuffle size={18} />} title="Shuffle" description="Randomize the next queue item." value={player.state.queue.shuffle ? 'On' : 'Off'} onClick={() => player.setShuffle(!player.state.queue.shuffle)} /><SettingRow icon={<Repeat size={18} />} title="Repeat" description="Repeat the current track or the whole queue." value={player.state.queue.repeat} onClick={() => player.setRepeat(player.state.queue.repeat === 'off' ? 'all' : player.state.queue.repeat === 'all' ? 'one' : 'off')} /><SettingRow icon={<Sparkles size={18} />} title="Adaptive artwork palette" description="Let the player borrow subtle accent colors from the current artwork." value={adaptivePalette ? 'On' : 'Off'} onClick={() => setAdaptivePalette(value => !value)} /><SettingRow icon={<Volume2 size={18} />} title="Playback source" description="Official YouTube IFrame Player API; no extracted media URLs." value="YouTube" /></div>}
       </AppShell>
 
-      <PlayerShell current={current} progress={progress} player={player} playerOpen={playerOpen} setPlayerOpen={setPlayerOpen} containerRef={player.containerRef} />
+      <PlayerShell current={current} progress={progress} player={player} playerOpen={playerOpen} setPlayerOpen={setPlayerOpen} containerRef={player.containerRef} adaptivePalette={adaptivePalette} />
     </main>
   );
 }
