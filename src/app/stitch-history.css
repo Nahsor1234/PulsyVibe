@@ -1,0 +1,150 @@
+/* Stitch-inspired history surface. Functional state remains owned by page.tsx. */
+:root {
+  --stitch-bg: #121315;
+  --stitch-surface-lowest: #0d0e10;
+  --stitch-surface-low: #1b1c1e;
+  --stitch-surface: #1f2022;
+  --stitch-surface-high: #292a2c;
+  --stitch-surface-highest: #343537;
+  --stitch-text: #e3e2e5;
+  --stitch-muted: #c8c4d6;
+  --stitch-outline: #928f9f;
+  --stitch-primary: #c7bfff;
+  --stitch-primary-container: #8e7fff;
+}
+
+.pv-screen-history {
+  color: var(--stitch-text);
+}
+
+.pv-screen-history > div {
+  max-width: 680px;
+}
+
+/* History list */
+.pv-screen-history .group.flex.items-center.gap-4.rounded-\[1\.35rem\] {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.045);
+  border-radius: 16px;
+  background: var(--stitch-surface);
+  padding: 16px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  transition: background .2s ease, border-color .2s ease, transform .2s ease;
+}
+
+.pv-screen-history .group.flex.items-center.gap-4.rounded-\[1\.35rem\]:hover {
+  background: var(--stitch-surface-high);
+  border-color: rgba(199,191,255,.14);
+  transform: translateY(-1px);
+}
+
+.pv-screen-history .group.flex.items-center.gap-4.rounded-\[1\.35rem\] > span:first-child {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--stitch-surface-highest);
+  color: var(--stitch-primary);
+}
+
+.pv-screen-history .group.flex.items-center.gap-4.rounded-\[1\.35rem\] > span:last-child {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--stitch-outline);
+}
+
+/* History headings */
+.pv-screen-history h1 {
+  letter-spacing: -.025em;
+}
+
+.pv-screen-history p {
+  color: var(--stitch-muted);
+}
+
+/* Saved-session detail */
+.pv-screen-history .rounded-\[1\.75rem\] {
+  border-color: rgba(255,255,255,.055);
+  background: var(--stitch-surface-low);
+  border-radius: 16px;
+  box-shadow: 0 5px 18px rgba(0,0,0,.16);
+}
+
+.pv-screen-history .rounded-\[1\.75rem\] .bg-primary\/10,
+.pv-screen-history .rounded-\[1\.75rem\] .bg-primary\/10 + * {
+  color: var(--stitch-primary);
+}
+
+/* Empty state */
+.pv-screen-history .border-dashed {
+  border-color: rgba(146,143,159,.22);
+  background: var(--stitch-surface-lowest);
+}
+
+/* Song rows inside a saved discovery */
+.pv-screen-history .space-y-1 > * {
+  border-radius: 12px;
+}
+
+/* Stitch-style compact navigation: 3 items in one opaque capsule. */
+.pv-floating-nav {
+  width: 260px !important;
+  max-width: calc(100vw - 32px);
+  bottom: max(18px, env(safe-area-inset-bottom)) !important;
+}
+
+.pv-floating-nav-pill {
+  height: 50px !important;
+  width: 100% !important;
+  padding: 4px 8px !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 999px !important;
+  background: rgba(27,28,30,.98) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 4px 24px rgba(0,0,0,.4) !important;
+}
+
+.pv-floating-nav-item {
+  min-height: 42px !important;
+  height: 42px !important;
+  border-radius: 999px !important;
+  color: rgba(200,196,214,.72) !important;
+  transition: color .2s ease, transform .2s ease !important;
+}
+
+.pv-floating-nav-item.is-active {
+  color: var(--stitch-primary) !important;
+}
+
+.pv-floating-nav-item:active {
+  transform: scale(.96);
+}
+
+/* One shared active surface that travels between items. */
+.pv-floating-nav-indicator {
+  position: absolute;
+  inset: 4px auto 4px 8px;
+  width: calc((100% - 16px) / 3);
+  border-radius: 999px;
+  background: rgba(199,191,255,.10);
+  box-shadow: inset 0 0 0 1px rgba(199,191,255,.045);
+  transform: translateX(calc(var(--pv-nav-index, 0) * 100%));
+  transition: transform 360ms cubic-bezier(.22,1,.36,1);
+  pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  .pv-floating-nav {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pv-floating-nav-indicator,
+  .pv-floating-nav-item,
+  .pv-screen-history .group.flex.items-center.gap-4.rounded-\[1\.35rem\] {
+    transition: none !important;
+  }
+}
