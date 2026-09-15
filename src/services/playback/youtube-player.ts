@@ -123,6 +123,7 @@ export class YouTubePlayerAdapter {
   private error: string | null = null;
   private ready = false;
   private pendingLoad: { videoId: string; autoplay: boolean } | null = null;
+  private timeUpdateTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly container: HTMLElement) {}
 
@@ -134,6 +135,7 @@ export class YouTubePlayerAdapter {
       playerVars: {
         playsinline: 1,
         enablejsapi: 1,
+        origin: window.location.origin,
         rel: 0,
       },
       events: {
@@ -142,6 +144,7 @@ export class YouTubePlayerAdapter {
           const pending = this.pendingLoad;
           this.pendingLoad = null;
           if (pending) this.applyLoad(pending.videoId, pending.autoplay);
+          this.startTimeUpdates();
           this.emit();
         },
         onStateChange: event => {
@@ -162,6 +165,7 @@ export class YouTubePlayerAdapter {
   }
 
   load(videoId: string, autoplay = false): void {
+    if (!videoId) return;
     if (!this.player || !this.ready) {
       this.pendingLoad = { videoId, autoplay };
       return;
@@ -175,6 +179,7 @@ export class YouTubePlayerAdapter {
   seek(seconds: number): void {
     if (!this.player || !Number.isFinite(seconds)) return;
     this.player.seekTo(Math.max(0, seconds), true);
+    this.emit();
   }
 
   setVolume(volume: number): void {
@@ -208,6 +213,7 @@ export class YouTubePlayerAdapter {
   }
 
   destroy(): void {
+    this.stopTimeUpdates();
     this.pendingLoad = null;
     this.ready = false;
     this.player?.destroy();
@@ -221,6 +227,20 @@ export class YouTubePlayerAdapter {
     if (autoplay) this.player.loadVideoById(videoId);
     else this.player.cueVideoById(videoId);
     this.emit();
+  }
+
+  private startTimeUpdates(): void {
+    this.stopTimeUpdates();
+    this.timeUpdateTimer = setInterval(() => {
+      if (!this.player || !this.ready) return;
+      this.emit();
+    }, 500);
+  }
+
+  private stopTimeUpdates(): void {
+    if (this.timeUpdateTimer === null) return;
+    clearInterval(this.timeUpdateTimer);
+    this.timeUpdateTimer = null;
   }
 
   private emit(): void {
