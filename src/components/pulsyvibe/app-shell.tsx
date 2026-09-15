@@ -57,8 +57,22 @@ export function AppShell({ view, onNavigate, onSearch, onOpenPlayer, playerAvail
         </section>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-4 border-t border-white/[0.08] bg-[#101010]/96 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-2xl md:hidden">
-        {NAV.map(([id, Icon, label]) => <button key={id} onClick={() => onNavigate(id)} className={`flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl text-[10px] ${view === id ? 'text-primary' : 'text-muted-foreground'}`}><Icon size={18} />{label}</button>)}
+      <nav className="pv-mobile-nav fixed bottom-3 left-1/2 z-40 flex w-[min(94vw,430px)] -translate-x-1/2 items-center justify-between gap-1 rounded-[1.4rem] border border-white/10 bg-[#111111]/88 px-2 py-2 shadow-[0_14px_50px_rgba(0,0,0,.45)] backdrop-blur-2xl md:hidden" aria-label="Primary navigation">
+        {NAV.map(([id, Icon, label]) => {
+          const active = view === id;
+          return (
+            <button
+              key={id}
+              onClick={() => onNavigate(id)}
+              aria-current={active ? 'page' : undefined}
+              className={`pv-mobile-nav-item relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[1rem] px-2 text-[10px] font-medium ${active ? 'text-primary' : 'text-muted-foreground'}`}
+            >
+              {active && <span className="pv-mobile-nav-pill" aria-hidden="true" />}
+              <Icon size={18} strokeWidth={active ? 2.4 : 2} className="relative z-[1]" />
+              <span className="relative z-[1]">{label}</span>
+            </button>
+          );
+        })}
       </nav>
 
       <BottomSheet open={mobileMenuOpen} title="Navigate" onClose={() => setMobileMenuOpen(false)}>
