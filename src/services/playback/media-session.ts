@@ -15,19 +15,24 @@ const SUPPORTED_ACTIONS: MediaSessionAction[] = [
   'previoustrack',
   'seekbackward',
   'seekforward',
+  'seekto',
 ];
 
 export function configureMediaSession(controls: MediaSessionControls): () => void {
   if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return () => {};
 
   const session = navigator.mediaSession;
-  const handlers: Partial<Record<MediaSessionAction, () => void | Promise<void>>> = {
+  const handlers: Partial<Record<MediaSessionAction, (details?: MediaSessionActionDetails) => void | Promise<void>>> = {
     play: controls.play,
     pause: controls.pause,
     nexttrack: controls.next,
     previoustrack: controls.previous,
     seekbackward: () => controls.seek(-10),
     seekforward: () => controls.seek(10),
+    seekto: details => {
+      if (!details || !Number.isFinite(details.seekTime)) return;
+      controls.seek(Math.max(0, details.seekTime));
+    },
   };
 
   for (const action of SUPPORTED_ACTIONS) {
@@ -51,27 +56,36 @@ export function configureMediaSession(controls: MediaSessionControls): () => voi
 
 export function updateMediaSession(
   track: Track | null,
-  state: { duration: number; currentTime: number },
+  state: { status?: string; duration: number; currentTime: number; playbackRate?: number },
 ): void {
   if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
 
+  const session = navigator.mediaSession;
+  session.playbackState = state.status === 'playing' ? 'playing' : state.status === 'paused' ? 'paused' : 'none';
+
   if (track) {
-    navigator.mediaSession.metadata = new MediaMetadata({
+    session.metadata = new MediaMetadata({
       title: track.title,
       artist: track.artist,
       album: track.channel ?? 'PulsyVibe',
-      artwork: track.thumbnail ? [{ src: track.thumbnail }] : [],
+      artwork: track.thumbnail
+        ? [
+            { src: track.thumbnail, sizes: '96x96', type: 'image/jpeg' },
+            { src: track.thumbnail, sizes: '192x192', type: 'image/jpeg' },
+            { src: track.thumbnail, sizes: '512x512', type: 'image/jpeg' },
+          ]
+        : [],
     });
   } else {
-    navigator.mediaSession.metadata = null;
+    session.metadata = null;
   }
 
   if (Number.isFinite(state.duration) && state.duration > 0) {
     const position = Math.max(0, Math.min(state.currentTime, state.duration));
     try {
-      navigator.mediaSession.setPositionState({
+      session.setPositionState({
         duration: state.duration,
-        playbackRate: 1,
+        playbackRate: state.playbackRate && state.playbackRate > 0 ? state.playbackRate : 1,
         position,
       });
     } catch {
