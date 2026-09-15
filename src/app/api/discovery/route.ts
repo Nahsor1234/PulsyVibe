@@ -10,6 +10,7 @@ const MAX_QUERY_LENGTH = 500;
 const MAX_COUNT = 50;
 const MAX_SEARCH_LIMIT = 20;
 const MAX_CONCURRENCY = 5;
+const MAX_SCORE = 100;
 
 interface DiscoveryPayload {
   query: string;
@@ -26,25 +27,26 @@ function isDiscoveryPayload(value: unknown): value is DiscoveryPayload {
 
   const payload = value as Partial<DiscoveryPayload>;
   if (typeof payload.query !== 'string') return false;
+
   const trimmed = payload.query.trim();
   if (trimmed.length === 0 || trimmed.length > MAX_QUERY_LENGTH) return false;
 
   return (
-    isOptionalPositiveNumber(payload.count) &&
+    isOptionalIntegerInRange(payload.count, 1, MAX_COUNT) &&
     (payload.mode === undefined || ['single', 'batch', 'progressive'].includes(payload.mode)) &&
-    isOptionalPositiveNumber(payload.concurrency) &&
-    isOptionalPositiveNumber(payload.searchLimit) &&
-    isOptionalNumber(payload.minimumScore) &&
-    isOptionalNumber(payload.relaxedMinimumScore)
+    isOptionalIntegerInRange(payload.concurrency, 1, MAX_CONCURRENCY) &&
+    isOptionalIntegerInRange(payload.searchLimit, 1, MAX_SEARCH_LIMIT) &&
+    isOptionalNumberInRange(payload.minimumScore, 0, MAX_SCORE) &&
+    isOptionalNumberInRange(payload.relaxedMinimumScore, 0, MAX_SCORE)
   );
 }
 
-function isOptionalPositiveNumber(value: unknown): value is number | undefined {
-  return value === undefined || (typeof value === 'number' && Number.isFinite(value) && value > 0);
+function isOptionalIntegerInRange(value: unknown, min: number, max: number): value is number | undefined {
+  return value === undefined || (typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max);
 }
 
-function isOptionalNumber(value: unknown): value is number | undefined {
-  return value === undefined || (typeof value === 'number' && Number.isFinite(value));
+function isOptionalNumberInRange(value: unknown, min: number, max: number): value is number | undefined {
+  return value === undefined || (typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max);
 }
 
 /**
@@ -61,18 +63,18 @@ export async function POST(req: Request) {
 
     if (!isDiscoveryPayload(body)) {
       return NextResponse.json(
-        { error: 'Invalid discovery payload. "query" is required and must be a non-empty string under 500 characters.' },
+        { error: 'Invalid discovery payload.' },
         { status: 400 },
       );
     }
 
     const orchestrator = createDiscoveryOrchestrator();
 
-    const result = await orchestrator.discover(body.query, {
-      count: body.count ? Math.min(Math.floor(body.count), MAX_COUNT) : undefined,
+    const result = await orchestrator.discover(body.query.trim(), {
+      count: body.count,
       mode: body.mode,
-      concurrency: body.concurrency ? Math.min(body.concurrency, MAX_CONCURRENCY) : undefined,
-      searchLimit: body.searchLimit ? Math.min(body.searchLimit, MAX_SEARCH_LIMIT) : undefined,
+      concurrency: body.concurrency,
+      searchLimit: body.searchLimit,
       minimumScore: body.minimumScore,
       relaxedMinimumScore: body.relaxedMinimumScore,
     });
@@ -91,9 +93,8 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error('[V2 discovery] request failed:', error);
-    const message = error instanceof Error ? error.message : 'Discovery pipeline failed.';
     return NextResponse.json(
-      { error: message },
+      { error: 'Discovery temporarily failed. Please try again.' },
       { status: 500 },
     );
   }
