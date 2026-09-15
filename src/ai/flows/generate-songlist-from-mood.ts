@@ -79,9 +79,10 @@ export async function generateSongList(input: {
     ? `Avoid these songs:\n${input.blacklist.slice(0, 25).join('\n')}`
     : 'None specified.';
 
-  // Use stable 2.5 Flash as the primary for flows
+  // Use stable 3.5 Flash as the primary for flows
+  const modelToUse = process.env.GEMINI_MODEL || 'googleai/gemini-3.5-flash';
   const { output } = await ai.generate({
-    model: 'googleai/gemini-2.5-flash',
+    model: modelToUse,
     system: SYSTEM_INSTRUCTIONS(input.mood, input.count, input.language || 'Global', exclude, blacklistBlock),
     prompt: `Sync Deep Intent Journey: "${input.mood}"`,
     output: { schema: DJResponseSchema },

@@ -73,8 +73,13 @@ export interface GeminiAiClient {
   }): Promise<T>;
 }
 
-export const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'googleai/gemini-3.6-flash';
-export const DEFAULT_AI_TIMEOUT_MS = 20000;
+export const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'googleai/gemini-3.1-flash-lite';
+export const FALLBACK_GEMINI_MODELS = [
+  'googleai/gemini-3.1-flash-lite',
+  'googleai/gemini-3.5-flash',
+  'googleai/gemini-2.5-flash',
+];
+export const DEFAULT_AI_TIMEOUT_MS = 35000;
 
 export interface GenkitGeminiClientOptions {
   apiKey?: string;
@@ -130,108 +135,124 @@ export class GenkitGeminiClient implements GeminiAiClient {
   }): Promise<T> {
     const timeoutMs = params.timeoutMs ?? this.defaultTimeoutMs;
 
-    // Active AbortController tied to timeout and optional caller abortSignal.
-    // Genkit passes `abortSignal` through @genkit-ai/google-genai clientOptions
-    // to the underlying fetch call (`signal: abortSignal`), achieving real cancellation.
-    const controller = new AbortController();
-    let isTimedOut = false;
+    const executeWithSignal = async (modelName: string, signal: AbortSignal): Promise<T> => {
+      const response = await this.aiInstance.generate({
+        model: modelName,
+        system: params.systemPrompt,
+        prompt: params.prompt,
+        output: { schema: params.schema as any },
+        abortSignal: signal,
+        config: {
+          temperature: params.temperature ?? 0.3,
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+          ],
+        },
+      });
 
-    if (params.abortSignal) {
-      if (params.abortSignal.aborted) {
-        controller.abort();
-      } else {
-        params.abortSignal.addEventListener('abort', () => controller.abort(), { once: true });
+      if (!response.output) {
+        throw new Error('Gemini returned an empty structured output response.');
       }
-    }
 
-    const timer = setTimeout(() => {
-      isTimedOut = true;
-      controller.abort();
-    }, timeoutMs);
-
-    if (typeof timer.unref === 'function') {
-      timer.unref();
-    }
+      return response.output as T;
+    };
 
     const maxRetries = 2;
-    try {
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-          const response = await this.aiInstance.generate({
-            model: this.model,
-            system: params.systemPrompt,
-            prompt: params.prompt,
-            output: { schema: params.schema as any },
-            abortSignal: controller.signal,
-            config: {
-              temperature: params.temperature ?? 0.3,
-              safetySettings: [
-                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-              ],
-            },
-          });
+    let lastError: unknown = null;
 
-          if (!response.output) {
-            throw new Error('Gemini returned an empty structured output response.');
-          }
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      if (params.abortSignal?.aborted) {
+        throw new Error('Gemini request was cancelled by caller.');
+      }
 
-          return response.output as T;
-        } catch (err: unknown) {
-          if (isTimedOut) {
-            throw new Error(`Gemini request timed out after ${timeoutMs}ms.`);
-          }
-          if (params.abortSignal?.aborted) {
-            throw new Error('Gemini request was cancelled by caller.');
-          }
-          const message = err instanceof Error ? err.message : String(err);
-          const isTransient =
-            message.includes('500') ||
-            message.includes('503') ||
-            message.includes('Internal error') ||
-            message.includes('UNAVAILABLE');
+      const controller = new AbortController();
+      let isTimedOut = false;
+      const callerAbortHandler = () => controller.abort();
 
-          if (attempt < maxRetries && isTransient) {
-            await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
-            continue;
-          }
+      if (params.abortSignal) {
+        params.abortSignal.addEventListener('abort', callerAbortHandler, { once: true });
+      }
 
-          // If a non-3.6 model experienced high demand (503) or deprecation (404), attempt resilient fallback to 3.6-flash
-          if (
-            this.model !== 'googleai/gemini-3.6-flash' &&
-            (message.includes('not available') ||
-              message.includes('UNAVAILABLE') ||
-              message.includes('503') ||
-              message.includes('404'))
-          ) {
-            try {
-              const fallbackResponse = await this.aiInstance.generate({
-                model: 'googleai/gemini-3.6-flash',
-                system: params.systemPrompt,
-                prompt: params.prompt,
-                output: { schema: params.schema as any },
-                abortSignal: controller.signal,
-                config: {
-                  temperature: params.temperature ?? 0.3,
-                },
-              });
-              if (fallbackResponse.output) {
-                return fallbackResponse.output as T;
-              }
-            } catch {
-              // preserve original error below
+      const timer = setTimeout(() => {
+        isTimedOut = true;
+        controller.abort();
+      }, timeoutMs);
+
+      if (typeof timer.unref === 'function') {
+        timer.unref();
+      }
+
+      try {
+        const result = await executeWithSignal(this.model, controller.signal);
+        clearTimeout(timer);
+        if (params.abortSignal) {
+          params.abortSignal.removeEventListener('abort', callerAbortHandler);
+        }
+        return result;
+      } catch (err: unknown) {
+        clearTimeout(timer);
+        if (params.abortSignal) {
+          params.abortSignal.removeEventListener('abort', callerAbortHandler);
+        }
+
+        if (params.abortSignal?.aborted) {
+          throw new Error('Gemini request was cancelled by caller.');
+        }
+
+        if (isTimedOut) {
+          lastError = new Error(`Gemini request timed out after ${timeoutMs}ms.`);
+        } else {
+          lastError = err;
+        }
+
+        const message = err instanceof Error ? err.message : String(err);
+        const isTransient =
+          message.includes('500') ||
+          message.includes('503') ||
+          message.includes('Internal error') ||
+          message.includes('UNAVAILABLE');
+
+        if (attempt < maxRetries && isTransient && !isTimedOut) {
+          await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+          continue;
+        }
+
+        // Resilient fallback across known available models if primary model is rate limited (429), unavailable (503), or fails
+        for (const fallbackModel of FALLBACK_GEMINI_MODELS) {
+          if (fallbackModel === this.model) continue;
+          if (params.abortSignal?.aborted) break;
+
+          const fbController = new AbortController();
+          const fbAbortHandler = () => fbController.abort();
+          if (params.abortSignal) {
+            params.abortSignal.addEventListener('abort', fbAbortHandler, { once: true });
+          }
+          const fbTimer = setTimeout(() => fbController.abort(), timeoutMs);
+          if (typeof fbTimer.unref === 'function') fbTimer.unref();
+
+          try {
+            const fallbackResult = await executeWithSignal(fallbackModel, fbController.signal);
+            clearTimeout(fbTimer);
+            if (params.abortSignal) {
+              params.abortSignal.removeEventListener('abort', fbAbortHandler);
+            }
+            return fallbackResult;
+          } catch {
+            clearTimeout(fbTimer);
+            if (params.abortSignal) {
+              params.abortSignal.removeEventListener('abort', fbAbortHandler);
             }
           }
-
-          throw new Error(`Gemini generation failed: ${message}`);
         }
+
+        throw lastError instanceof Error ? lastError : new Error(`Gemini generation failed: ${message}`);
       }
-      throw new Error('Gemini generation failed unexpectedly.');
-    } finally {
-      clearTimeout(timer);
     }
+
+    throw lastError instanceof Error ? lastError : new Error('Gemini generation failed unexpectedly.');
   }
 }
 

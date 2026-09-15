@@ -13,10 +13,9 @@ export const dynamic = 'force-dynamic';
  * Prioritizing Lite models for maximum speed and serverless safety.
  */
 const GEMINI_MODEL_POOL = [
-  'googleai/gemini-2.5-flash-lite',
+  'googleai/gemini-3.5-flash',
   'googleai/gemini-3.1-flash-lite',
-  'googleai/gemini-2.5-flash',
-  'googleai/gemini-2.5-pro',
+  'googleai/gemini-3.6-flash',
 ];
 
 const getFallbackPayload = (mood: string) => ({
