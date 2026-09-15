@@ -32,3 +32,6 @@ export class ProviderRecommendationEngine implements RecommendationEngine {
     return this.provider.recommend(request);
   }
 }
+
+export { GeminiAiProvider } from './gemini-provider';
+
