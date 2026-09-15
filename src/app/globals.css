@@ -77,8 +77,111 @@
   main > div > section > header { min-height: 44px; margin-bottom: 24px; }
   main > div > section > header button { min-width: 44px; min-height: 44px; }
   main > div > section h1 { letter-spacing: -0.035em; }
-  /* The mobile menu behaves as a compact command palette rather than a generic dropdown. */
   main > div > section > header .absolute { box-shadow: 0 18px 50px rgba(0,0,0,.45); backdrop-filter: blur(24px); }
+}
+
+/* Phase 3 home: stronger hierarchy, a hero glow, tactile discovery input, and richer vibe chips. */
+@media (min-width: 768px) {
+  main > div > section > div.mx-auto.max-w-5xl > section:first-child {
+    position: relative;
+    isolation: isolate;
+    padding-bottom: 1.5rem;
+  }
+  main > div > section > div.mx-auto.max-w-5xl > section:first-child::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    width: 26rem;
+    height: 18rem;
+    left: -7rem;
+    top: -5rem;
+    border-radius: 999px;
+    background: hsl(var(--primary) / 0.09);
+    filter: blur(70px);
+    pointer-events: none;
+  }
+}
+
+main > div > section > div.mx-auto.max-w-5xl > section:first-child h1 {
+  text-wrap: balance;
+  line-height: .98;
+}
+
+main > div > section > div.mx-auto.max-w-5xl > section:first-child p:first-child {
+  letter-spacing: .01em;
+}
+
+main > div > section > div.mx-auto.max-w-5xl form {
+  position: relative;
+  border-color: hsl(var(--primary) / .16);
+  background: linear-gradient(135deg, rgba(255,255,255,.055), rgba(255,255,255,.018));
+  box-shadow: 0 22px 70px -38px hsl(var(--primary) / .45), inset 0 1px 0 rgba(255,255,255,.035);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+main > div > section > div.mx-auto.max-w-5xl form:focus-within {
+  border-color: hsl(var(--primary) / .38);
+  box-shadow: 0 24px 80px -34px hsl(var(--primary) / .55), 0 0 0 3px hsl(var(--primary) / .05);
+}
+
+main > div > section > div.mx-auto.max-w-5xl form input {
+  min-height: 3.1rem;
+}
+
+main > div > section > div.mx-auto.max-w-5xl form button[type="submit"] {
+  min-width: 7rem;
+  box-shadow: 0 10px 30px -16px hsl(var(--primary) / .9);
+}
+
+main > div > section > div.mx-auto.max-w-5xl form button[type="submit"]:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 34px -15px hsl(var(--primary) / .95);
+}
+
+main > div > section > div.mx-auto.max-w-5xl > div.flex.gap-2.overflow-x-auto {
+  mask-image: linear-gradient(to right, transparent, black 14px, black calc(100% - 24px), transparent);
+  padding-left: 12px;
+  padding-right: 20px;
+}
+
+main > div > section > div.mx-auto.max-w-5xl > div.flex.gap-2.overflow-x-auto button {
+  min-height: 40px;
+  background: rgba(255,255,255,.035);
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+main > div > section > div.mx-auto.max-w-5xl > div.flex.gap-2.overflow-x-auto button:hover {
+  transform: translateY(-2px);
+  background: hsl(var(--primary) / .08);
+}
+
+main > div > section > div.mx-auto.max-w-5xl section:not(:first-child) > div.grid button {
+  background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.018));
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+main > div > section > div.mx-auto.max-w-5xl section:not(:first-child) > div.grid button:hover {
+  transform: translateY(-1px);
+  border-color: hsl(var(--primary) / .18);
+  background: hsl(var(--primary) / .045);
+}
+
+@media (max-width: 767px) {
+  main > div > section > div.mx-auto.max-w-5xl > section:first-child {
+    padding-top: 1rem;
+  }
+  main > div > section > div.mx-auto.max-w-5xl > section:first-child h1 {
+    font-size: clamp(2.45rem, 12vw, 3.65rem);
+    line-height: 1;
+  }
+  main > div > section > div.mx-auto.max-w-5xl form {
+    border-radius: 1.5rem;
+  }
+  main > div > section > div.mx-auto.max-w-5xl form button[type="submit"] {
+    min-width: 3rem;
+    padding-left: .75rem;
+    padding-right: .75rem;
+  }
 }
 
 .transform-gpu { transform: translate3d(0, 0, 0); backface-visibility: hidden; perspective: 1000px; }
