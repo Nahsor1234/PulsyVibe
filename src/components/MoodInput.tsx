@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, memo, useCallback, useEffect, useRef } from "react";
-import { Dices, Languages, Music2, Flame, Zap, Moon, Sparkles, Search, BrainCircuit, Binary, Headphones, Heart, Radio, ChevronRight, Coffee, Car, CloudRain, Loader2 } from "lucide-react";
+import { Dices, Languages, Music2, Search, BrainCircuit, Binary, Headphones, Sparkles, Moon, Flame, Radio, Coffee, Car, CloudRain, Loader2, ChevronRight, Guitar, Disc3, Mic2, Waves } from "lucide-react";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -18,14 +18,18 @@ interface MoodInputProps {
 }
 
 const INTERNATIONAL_POOL = [
-  { label: "Late Night Drive", icon: <Moon size={14} />, query: "Late Night Drive" },
-  { label: "Rainy Mood", icon: <CloudRain size={14} />, query: "Rainy Mood" },
-  { label: "Night Coding", icon: <Binary size={14} />, query: "Night Coding" },
-  { label: "Feel Good", icon: <Sparkles size={14} />, query: "Feel Good" },
-  { label: "Morning Boost", icon: <Coffee size={14} />, query: "Morning Boost" },
-  { label: "Road Trip", icon: <Car size={14} />, query: "Road Trip" },
-  { label: "Workout Flow", icon: <Flame size={14} />, query: "Workout Flow" },
-  { label: "Lofi Beats", icon: <Headphones size={14} />, query: "Lofi Beats" },
+  { label: "Cinematic Night", icon: <Moon size={14} />, query: "Cinematic night soundtrack" },
+  { label: "2000s Nostalgia", icon: <Disc3 size={14} />, query: "2000s nostalgia hits" },
+  { label: "Deep Focus", icon: <Binary size={14} />, query: "Deep focus music" },
+  { label: "R&B After Hours", icon: <Mic2 size={14} />, query: "R&B after hours" },
+  { label: "Retro Synthwave", icon: <Radio size={14} />, query: "Retro synthwave" },
+  { label: "Cozy Cafe", icon: <Coffee size={14} />, query: "Cozy cafe acoustic music" },
+  { label: "Indie Escape", icon: <Guitar size={14} />, query: "Indie rock escape" },
+  { label: "House Sunrise", icon: <Waves size={14} />, query: "House music sunrise" },
+  { label: "Punjabi Drive", icon: <Car size={14} />, query: "Punjabi night drive" },
+  { label: "Desi Chill", icon: <Sparkles size={14} />, query: "Desi chill session" },
+  { label: "Victory Lap", icon: <Flame size={14} />, query: "Victory lap hype music" },
+  { label: "Acoustic Campfire", icon: <Headphones size={14} />, query: "Acoustic campfire songs" },
 ];
 
 export const MoodInput = memo(({ onGenerate, onSearch, isLoading, currentTheme, activeHue }: MoodInputProps) => {
